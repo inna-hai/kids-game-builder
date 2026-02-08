@@ -5,26 +5,22 @@ const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 
 // OpenClaw webhook configuration
-const OPENCLAW_GATEWAY = process.env.OPENCLAW_GATEWAY || 'http://localhost:18789';
-const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '';
+const OPENCLAW_GATEWAY = 'http://localhost:18789';
+const OPENCLAW_TOKEN = 'e1cefafe040421e888f3e5e1583fb87e4394442c77010400';
 
 // Notify OpenClaw about new game request
 async function notifyOpenClaw(gameId, prompt) {
-  if (!OPENCLAW_TOKEN) {
-    console.log('⚠️ No OPENCLAW_TOKEN - skipping notification');
-    return;
-  }
-  
   try {
-    const response = await fetch(`${OPENCLAW_GATEWAY}/api/cron/wake`, {
+    // Use sessions/send to send message to main session
+    const response = await fetch(`${OPENCLAW_GATEWAY}/api/sessions/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${OPENCLAW_TOKEN}`
       },
       body: JSON.stringify({
-        mode: 'now',
-        text: `בקשה חדשה למשחק! ID: ${gameId}, Prompt: ${prompt.slice(0, 100)}`
+        sessionKey: 'agent:main:main',
+        message: `[GAME REQUEST] בקשה חדשה למשחק: ${gameId} - ${prompt.slice(0, 80)}`
       })
     });
     
@@ -90,13 +86,12 @@ app.post('/api/user', (req, res) => {
 // Submit game request (goes to queue for Claude to process)
 app.post('/api/request', (req, res) => {
   try {
-    const { userId, prompt, images } = req.body;
+    const { userId, prompt, images, parentGameId } = req.body;
     
     if (!userId || !prompt) {
       return res.status(400).json({ error: 'נדרש userId ו-prompt' });
     }
 
-    const id = uuidv4();
     let fullPrompt = prompt;
     
     // Add images to prompt if provided
@@ -107,6 +102,24 @@ app.post('/api/request', (req, res) => {
       });
     }
 
+    // Check if this is an improvement to existing game
+    if (parentGameId) {
+      const parentGame = db.prepare('SELECT * FROM games WHERE id = ?').get(parentGameId);
+      if (parentGame) {
+        // Update existing game - set to pending with new prompt
+        const improvePrompt = `שפר את המשחק הקיים:\n\nקוד נוכחי:\n${parentGame.code}\n\nשיפורים מבוקשים:\n${fullPrompt}`;
+        
+        db.prepare('UPDATE games SET prompt = ?, status = ?, completed_at = NULL WHERE id = ?')
+          .run(improvePrompt, 'pending', parentGameId);
+        
+        notifyOpenClaw(parentGameId, prompt);
+        
+        return res.json({ id: parentGameId, status: 'pending', message: 'משפרים את המשחק! ⏳', isImprovement: true });
+      }
+    }
+
+    // New game
+    const id = uuidv4();
     db.prepare('INSERT INTO games (id, user_id, name, prompt, status) VALUES (?, ?, ?, ?, ?)')
       .run(id, userId, prompt.slice(0, 50), fullPrompt, 'pending');
 

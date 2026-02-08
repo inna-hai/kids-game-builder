@@ -962,16 +962,17 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         userId: currentUser.id,
-                        prompt: `שפר את המשחק "${currentGameName}" (ID: ${currentGameId}): ${prompt}`,
-                        images: uploadedImages
+                        prompt: prompt,
+                        images: uploadedImages,
+                        parentGameId: currentGameId  // Keep same game!
                     })
                 });
 
                 const data = await response.json();
-                currentGameId = data.id;
+                // Don't change currentGameId - it stays the same!
                 
                 showWaitingState();
-                startPolling(data.id);
+                startPolling(currentGameId);  // Poll the SAME game
                 showToast('משפר את המשחק! ⏳');
                 document.getElementById('improvePrompt').value = '';
                 
