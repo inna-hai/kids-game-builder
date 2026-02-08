@@ -4,6 +4,40 @@ const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 
+// OpenClaw webhook configuration
+const OPENCLAW_GATEWAY = process.env.OPENCLAW_GATEWAY || 'http://localhost:18789';
+const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || '';
+
+// Notify OpenClaw about new game request
+async function notifyOpenClaw(gameId, prompt) {
+  if (!OPENCLAW_TOKEN) {
+    console.log('⚠️ No OPENCLAW_TOKEN - skipping notification');
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${OPENCLAW_GATEWAY}/api/cron/wake`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENCLAW_TOKEN}`
+      },
+      body: JSON.stringify({
+        mode: 'now',
+        text: `בקשה חדשה למשחק! ID: ${gameId}, Prompt: ${prompt.slice(0, 100)}`
+      })
+    });
+    
+    if (response.ok) {
+      console.log(`✅ OpenClaw notified about game ${gameId}`);
+    } else {
+      console.log(`⚠️ OpenClaw notification failed: ${response.status}`);
+    }
+  } catch (error) {
+    console.log(`⚠️ OpenClaw notification error: ${error.message}`);
+  }
+}
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
@@ -75,6 +109,9 @@ app.post('/api/request', (req, res) => {
 
     db.prepare('INSERT INTO games (id, user_id, name, prompt, status) VALUES (?, ?, ?, ?, ?)')
       .run(id, userId, prompt.slice(0, 50), fullPrompt, 'pending');
+
+    // Notify OpenClaw immediately
+    notifyOpenClaw(id, prompt);
 
     res.json({ id, status: 'pending', message: 'הבקשה נשלחה! המשחק ייווצר בקרוב...' });
   } catch (error) {
