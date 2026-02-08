@@ -318,6 +318,15 @@
                     <span>🚀</span> צור את המשחק!
                 </button>
 
+                <div class="images-section" style="margin-top: 1rem; padding: 1rem; background: #f8f9fa; border-radius: 12px;">
+                    <h3 style="font-size: 1rem; color: #666; margin-bottom: 0.75rem;">🖼️ תמונות למשחק (אופציונלי):</h3>
+                    <input type="file" id="imageInput" accept="image/*" multiple style="display: none;" onchange="handleImageUpload(event)">
+                    <button onclick="document.getElementById('imageInput').click()" style="padding: 0.5rem 1rem; background: #e0e0e0; border: none; border-radius: 8px; cursor: pointer; font-family: inherit;">
+                        📤 העלה תמונות
+                    </button>
+                    <div id="uploadedImages" style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;"></div>
+                </div>
+
                 <div class="examples">
                     <h3>💡 רעיונות למשחקים:</h3>
                     <div class="example-chips">
@@ -359,16 +368,66 @@
 
     <script>
         let currentGameId = null;
+        let uploadedImages = [];
 
         function setExample(text) {
             document.getElementById('prompt').value = text;
         }
 
+        async function handleImageUpload(event) {
+            const files = event.target.files;
+            const container = document.getElementById('uploadedImages');
+            
+            for (const file of files) {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    try {
+                        const response = await fetch('/api/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                image: e.target.result,
+                                filename: file.name
+                            })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.url) {
+                            uploadedImages.push(data.url);
+                            container.innerHTML += `
+                                <div style="position: relative; width: 60px; height: 60px;">
+                                    <img src="${data.url}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;">
+                                    <button onclick="removeImage('${data.url}', this.parentElement)" style="position: absolute; top: -5px; right: -5px; width: 20px; height: 20px; border-radius: 50%; border: none; background: #f44; color: white; cursor: pointer; font-size: 12px;">×</button>
+                                </div>
+                            `;
+                            showToast('תמונה הועלתה! 📸');
+                        }
+                    } catch (error) {
+                        showToast('שגיאה בהעלאת תמונה');
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function removeImage(url, element) {
+            uploadedImages = uploadedImages.filter(u => u !== url);
+            element.remove();
+        }
+
         async function generateGame() {
-            const prompt = document.getElementById('prompt').value.trim();
+            let prompt = document.getElementById('prompt').value.trim();
             if (!prompt) {
                 showToast('אנא תארו את המשחק שאתם רוצים');
                 return;
+            }
+            
+            // Add uploaded images to prompt
+            if (uploadedImages.length > 0) {
+                prompt += '\n\nתמונות שהעליתי (השתמש בהן במשחק):\n';
+                uploadedImages.forEach((url, i) => {
+                    prompt += `תמונה ${i + 1}: ${window.location.origin}${url}\n`;
+                });
             }
 
             const btn = document.getElementById('generateBtn');
@@ -430,6 +489,8 @@
                 </div>
             `;
             document.getElementById('gameActions').style.display = 'none';
+            document.getElementById('uploadedImages').innerHTML = '';
+            uploadedImages = [];
             currentGameId = null;
         }
 

@@ -4,11 +4,18 @@ const Anthropic = require('@anthropic-ai/sdk');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.static('public'));
+app.use('/uploads', express.static('uploads'));
+
+// Create uploads directory
+if (!fs.existsSync('uploads')) {
+  fs.mkdirSync('uploads');
+}
 
 // Database setup
 const db = new Database('games.db');
@@ -37,8 +44,10 @@ const SYSTEM_PROMPT = `אתה מפתח משחקים לילדים בני 9-11.
 3. הוראות בעברית
 4. משחק פשוט וברור
 5. כפתורים גדולים וקריאים
-6. צלילים ואפקטים (אם נדרש) באמצעות Web Audio API
-7. תמונות באמצעות emoji או SVG פשוט
+6. צלילים ואפקטים באמצעות Web Audio API - תמיד תוסיף צלילים מגניבים!
+7. תמונות: אם הילד העלה תמונות, הוא יתן לך URLs שלהן. השתמש ב-<img src="URL">
+8. אם אין תמונות, השתמש ב-emoji או SVG פשוט
+9. תוסיף אפקטים ויזואליים - אנימציות CSS, חלקיקים, וכו'
 
 החזר רק את הקוד, בלי הסברים, בפורמט:
 \`\`\`html
@@ -94,6 +103,39 @@ app.get('/api/game/:id', (req, res) => {
 app.get('/api/games', (req, res) => {
   const games = db.prepare('SELECT id, name, created_at FROM games ORDER BY created_at DESC LIMIT 20').all();
   res.json(games);
+});
+
+// Upload image endpoint
+app.post('/api/upload', (req, res) => {
+  try {
+    const { image, filename } = req.body;
+    
+    if (!image) {
+      return res.status(400).json({ error: 'נדרשת תמונה' });
+    }
+    
+    // Extract base64 data
+    const matches = image.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({ error: 'פורמט תמונה לא תקין' });
+    }
+    
+    const ext = matches[1] === 'jpeg' ? 'jpg' : matches[1];
+    const data = matches[2];
+    const id = uuidv4();
+    const fname = `${id}.${ext}`;
+    
+    fs.writeFileSync(`uploads/${fname}`, Buffer.from(data, 'base64'));
+    
+    res.json({ 
+      id,
+      url: `/uploads/${fname}`,
+      filename: filename || fname
+    });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ error: 'שגיאה בהעלאת התמונה' });
+  }
 });
 
 // Serve game in iframe
