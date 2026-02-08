@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 בונה משחקים - צור משחק עם AI!</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Rubik', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            padding: 2rem 0;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            font-weight: 900;
+            text-shadow: 3px 3px 0 rgba(0,0,0,0.2);
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            font-size: 1.3rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border-radius: 24px;
+            padding: 1.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .panel h2 {
+            font-size: 1.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .prompt-area {
+            width: 100%;
+            height: 150px;
+            border: 3px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 1.1rem;
+            resize: none;
+            transition: border-color 0.3s;
+        }
+
+        .prompt-area:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn-generate {
+            width: 100%;
+            padding: 1rem 2rem;
+            margin-top: 1rem;
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(245, 87, 108, 0.4);
+        }
+
+        .btn-generate:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .examples {
+            margin-top: 1.5rem;
+        }
+
+        .examples h3 {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+        }
+
+        .example-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .example-chip {
+            background: #f0f0f0;
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            border: none;
+        }
+
+        .example-chip:hover {
+            background: #e0e0e0;
+        }
+
+        .game-frame {
+            width: 100%;
+            height: 500px;
+            border: none;
+            border-radius: 16px;
+            background: #f5f5f5;
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 300px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid #f0f0f0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #999;
+            text-align: center;
+        }
+
+        .empty-state .emoji {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+        }
+
+        .game-actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-action:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-share {
+            background: #4CAF50;
+            color: white;
+        }
+
+        .btn-fullscreen {
+            background: #2196F3;
+            color: white;
+        }
+
+        .btn-new {
+            background: #FF9800;
+            color: white;
+        }
+
+        .recent-games {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #f0f0f0;
+        }
+
+        .recent-games h3 {
+            font-size: 1rem;
+            color: #666;
+            margin-bottom: 0.75rem;
+        }
+
+        .recent-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .recent-item {
+            background: #f5f5f5;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .recent-item:hover {
+            background: #e8e8e8;
+        }
+
+        .recent-item .name {
+            font-weight: 500;
+        }
+
+        .recent-item .time {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #333;
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 בונה משחקים</h1>
+            <p>תארו את המשחק שתרצו - ו-AI יבנה אותו בשבילכם!</p>
+        </header>
+
+        <div class="main-content">
+            <div class="panel">
+                <h2>✨ מה המשחק שלכם?</h2>
+                <textarea 
+                    class="prompt-area" 
+                    id="prompt" 
+                    placeholder="תארו את המשחק שאתם רוצים...
+
+למשל: משחק שבו יש לי חללית ואני צריך להתחמק מאסטרואידים"
+                ></textarea>
+                <button class="btn-generate" id="generateBtn" onclick="generateGame()">
+                    <span>🚀</span> צור את המשחק!
+                </button>
+
+                <div class="examples">
+                    <h3>💡 רעיונות למשחקים:</h3>
+                    <div class="example-chips">
+                        <button class="example-chip" onclick="setExample('משחק זיכרון עם קלפים של חיות')">🐶 זיכרון חיות</button>
+                        <button class="example-chip" onclick="setExample('משחק חללית שמתחמקת מאסטרואידים')">🚀 חללית</button>
+                        <button class="example-chip" onclick="setExample('משחק תפוס את הפירות שנופלים')">🍎 תפוס פירות</button>
+                        <button class="example-chip" onclick="setExample('חידון טריוויה על בעלי חיים')">🦁 חידון חיות</button>
+                        <button class="example-chip" onclick="setExample('משחק נחש שאוכל תפוחים וגדל')">🐍 נחש</button>
+                        <button class="example-chip" onclick="setExample('משחק פינג פונג לשני שחקנים')">🏓 פינג פונג</button>
+                    </div>
+                </div>
+
+                <div class="recent-games" id="recentGames">
+                    <h3>📂 משחקים אחרונים:</h3>
+                    <div class="recent-list" id="recentList">
+                        <!-- Filled dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🎯 המשחק שלכם</h2>
+                <div id="gameContainer">
+                    <div class="empty-state">
+                        <div class="emoji">🎨</div>
+                        <p>תארו את המשחק שלכם והקליקו "צור את המשחק"</p>
+                    </div>
+                </div>
+                <div class="game-actions" id="gameActions" style="display: none;">
+                    <button class="btn-action btn-new" onclick="newGame()">🆕 משחק חדש</button>
+                    <button class="btn-action btn-fullscreen" onclick="fullscreen()">📺 מסך מלא</button>
+                    <button class="btn-action btn-share" onclick="share()">📤 שתף</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let currentGameId = null;
+
+        function setExample(text) {
+            document.getElementById('prompt').value = text;
+        }
+
+        async function generateGame() {
+            const prompt = document.getElementById('prompt').value.trim();
+            if (!prompt) {
+                showToast('אנא תארו את המשחק שאתם רוצים');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const container = document.getElementById('gameContainer');
+            
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner" style="width:24px;height:24px;border-width:3px;margin:0;"></span> יוצר את המשחק...';
+            
+            container.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>ה-AI בונה את המשחק שלכם... 🎨</p>
+                </div>
+            `;
+
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                currentGameId = data.id;
+                container.innerHTML = `<iframe class="game-frame" srcdoc="${escapeHtml(data.code)}"></iframe>`;
+                document.getElementById('gameActions').style.display = 'flex';
+                loadRecentGames();
+                showToast('המשחק נוצר בהצלחה! 🎉');
+
+            } catch (error) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="emoji">😅</div>
+                        <p>משהו השתבש, נסו שוב</p>
+                    </div>
+                `;
+                showToast('שגיאה: ' + error.message);
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<span>🚀</span> צור את המשחק!';
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/"/g, '&quot;');
+        }
+
+        function newGame() {
+            document.getElementById('prompt').value = '';
+            document.getElementById('gameContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="emoji">🎨</div>
+                    <p>תארו את המשחק שלכם והקליקו "צור את המשחק"</p>
+                </div>
+            `;
+            document.getElementById('gameActions').style.display = 'none';
+            currentGameId = null;
+        }
+
+        function fullscreen() {
+            const iframe = document.querySelector('.game-frame');
+            if (iframe && iframe.requestFullscreen) {
+                iframe.requestFullscreen();
+            }
+        }
+
+        function share() {
+            if (currentGameId) {
+                const url = window.location.origin + '/play/' + currentGameId;
+                navigator.clipboard.writeText(url);
+                showToast('הקישור הועתק! 📋');
+            }
+        }
+
+        async function loadRecentGames() {
+            try {
+                const response = await fetch('/api/games');
+                const games = await response.json();
+                
+                const list = document.getElementById('recentList');
+                if (games.length === 0) {
+                    list.innerHTML = '<p style="color:#999;text-align:center;">אין משחקים עדיין</p>';
+                    return;
+                }
+
+                list.innerHTML = games.map(game => `
+                    <div class="recent-item" onclick="loadGame('${game.id}')">
+                        <span class="name">${game.name}...</span>
+                        <span class="time">${formatTime(game.created_at)}</span>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading games:', error);
+            }
+        }
+
+        async function loadGame(id) {
+            try {
+                const response = await fetch('/api/game/' + id);
+                const game = await response.json();
+                
+                currentGameId = game.id;
+                document.getElementById('prompt').value = game.prompt;
+                document.getElementById('gameContainer').innerHTML = `<iframe class="game-frame" srcdoc="${escapeHtml(game.code)}"></iframe>`;
+                document.getElementById('gameActions').style.display = 'flex';
+            } catch (error) {
+                showToast('שגיאה בטעינת המשחק');
+            }
+        }
+
+        function formatTime(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'עכשיו';
+            if (diff < 3600000) return Math.floor(diff/60000) + ' דק\'';
+            if (diff < 86400000) return Math.floor(diff/3600000) + ' שעות';
+            return date.toLocaleDateString('he-IL');
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // Load recent games on startup
+        loadRecentGames();
+    </script>
+</body>
+</html>
