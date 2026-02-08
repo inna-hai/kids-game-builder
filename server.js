@@ -173,7 +173,8 @@ app.post('/api/upload', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
-  console.log(`🎮 Kids Game Builder running on http://localhost:${PORT}`);
+const HOST = '0.0.0.0';
+app.listen(PORT, HOST, () => {
+  console.log(`🎮 Kids Game Builder running on http://${HOST}:${PORT}`);
   console.log(`📋 Pending requests endpoint: http://localhost:${PORT}/api/pending`);
 });
