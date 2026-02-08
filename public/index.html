@@ -526,8 +526,9 @@
         </div>
     </div>
 
-    <div class="user-info" id="userInfo" style="display:none;" onclick="showGamesScreen()">
+    <div class="user-info" id="userInfo" style="display:none;">
         👤 <span id="userName"></span>
+        <button onclick="logout()" style="margin-right:0.5rem;background:none;border:none;cursor:pointer;font-size:0.85rem;color:#666;">🚪 יציאה</button>
     </div>
     
     <div class="toast" id="toast"></div>
@@ -970,6 +971,18 @@
             toast.textContent = message;
             toast.classList.add('show');
             setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function logout() {
+            localStorage.removeItem('gameBuilderUser');
+            currentUser = null;
+            currentGameId = null;
+            currentGameName = null;
+            if (pollInterval) clearInterval(pollInterval);
+            document.getElementById('userInfo').style.display = 'none';
+            document.getElementById('nameInput').value = '';
+            showScreen('loginScreen');
+            showToast('להתראות! 👋');
         }
 
         document.getElementById('nameInput').addEventListener('keypress', (e) => {
