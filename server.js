@@ -3,7 +3,6 @@ const cors = require('cors');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
-const Anthropic = require('@anthropic-ai/sdk');
 
 const app = express();
 app.use(cors());
@@ -15,11 +14,6 @@ app.use('/uploads', express.static('uploads'));
 if (!fs.existsSync('uploads')) {
   fs.mkdirSync('uploads');
 }
-
-// Anthropic API client
-const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY
-});
 
 // Database setup
 const db = new Database('games.db');
@@ -42,44 +36,6 @@ db.exec(`
   );
 `);
 
-const GAME_SYSTEM_PROMPT = `אתה מומחה ביצירת משחקים אינטראקטיביים לילדים בעברית.
-
-כללים חשובים:
-1. צור קוד HTML+CSS+JavaScript מלא שעובד בתוך iframe
-2. הכל בקובץ אחד (inline styles ו-script)
-3. תמיכה מלאה ב-RTL ועברית
-4. עיצוב צבעוני ומזמין לילדים
-5. הוסף צלילים עם Web Audio API (לא קבצים חיצוניים)
-6. הוסף אנימציות CSS
-7. חווית משחק טובה: הוראות, ניקוד, מסך ניצחון
-8. קוד נקי שעובד
-
-החזר רק את קוד ה-HTML, ללא הסברים נוספים. התחל עם <!DOCTYPE html>`;
-
-// Generate game with Claude API
-async function generateGame(prompt) {
-  const message = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 8000,
-    system: GAME_SYSTEM_PROMPT,
-    messages: [
-      { role: 'user', content: prompt }
-    ]
-  });
-  
-  let code = message.content[0].text;
-  
-  // Clean up code if needed
-  if (code.includes('```html')) {
-    code = code.replace(/```html\n?/g, '').replace(/```\n?/g, '');
-  }
-  if (code.includes('```')) {
-    code = code.replace(/```\n?/g, '');
-  }
-  
-  return code.trim();
-}
-
 // Create or get user
 app.post('/api/user', (req, res) => {
   const { name } = req.body;
@@ -97,8 +53,8 @@ app.post('/api/user', (req, res) => {
   res.json(user);
 });
 
-// Submit game request - NOW WITH DIRECT GENERATION!
-app.post('/api/request', async (req, res) => {
+// Submit game request (goes to queue for Claude to process)
+app.post('/api/request', (req, res) => {
   try {
     const { userId, prompt, images } = req.body;
     
@@ -117,27 +73,10 @@ app.post('/api/request', async (req, res) => {
       });
     }
 
-    // Insert as pending first
     db.prepare('INSERT INTO games (id, user_id, name, prompt, status) VALUES (?, ?, ?, ?, ?)')
       .run(id, userId, prompt.slice(0, 50), fullPrompt, 'pending');
 
-    // Return immediately so user sees "building..."
-    res.json({ id, status: 'pending', message: 'המשחק נבנה! ⏳' });
-
-    // Generate in background
-    try {
-      console.log(`🎮 Generating game ${id}...`);
-      const code = await generateGame(fullPrompt);
-      
-      db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
-        .run(code, 'completed', id);
-      console.log(`✅ Game ${id} completed!`);
-    } catch (genError) {
-      console.error(`❌ Game ${id} failed:`, genError.message);
-      db.prepare('UPDATE games SET status = ?, code = ? WHERE id = ?')
-        .run('failed', 'שגיאה ביצירת המשחק: ' + genError.message, id);
-    }
-
+    res.json({ id, status: 'pending', message: 'הבקשה נשלחה! המשחק ייווצר בקרוב...' });
   } catch (error) {
     console.error('Error submitting request:', error);
     res.status(500).json({ error: 'שגיאה בשליחת הבקשה' });
@@ -153,13 +92,13 @@ app.get('/api/status/:id', (req, res) => {
   res.json(game);
 });
 
-// Get pending requests (for external processing - still available)
+// Get pending requests (for Claude to process)
 app.get('/api/pending', (req, res) => {
   const pending = db.prepare('SELECT * FROM games WHERE status = ? ORDER BY created_at ASC LIMIT 10').all('pending');
   res.json(pending);
 });
 
-// Complete a game (external can still call this)
+// Complete a game (Claude calls this after generating)
 app.post('/api/complete/:id', (req, res) => {
   const { code } = req.body;
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
@@ -233,22 +172,9 @@ app.post('/api/upload', (req, res) => {
   }
 });
 
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    apiConfigured: !!process.env.ANTHROPIC_API_KEY,
-    timestamp: new Date().toISOString()
-  });
-});
-
 const PORT = process.env.PORT || 3002;
 const HOST = '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`🎮 Kids Game Builder running on http://${HOST}:${PORT}`);
-  if (process.env.ANTHROPIC_API_KEY) {
-    console.log(`✅ Anthropic API configured - direct generation enabled!`);
-  } else {
-    console.log(`⚠️ No ANTHROPIC_API_KEY - using queue mode (slower)`);
-  }
+  console.log(`📋 Pending requests endpoint: http://localhost:${PORT}/api/pending`);
 });
