@@ -14,10 +14,14 @@
             min-height: 100vh;
             padding: 1rem;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
+        .container { max-width: 1200px; margin: 0 auto; }
         header { text-align: center; padding: 1.5rem 0; color: white; }
         header h1 { font-size: 2.2rem; font-weight: 900; text-shadow: 3px 3px 0 rgba(0,0,0,0.2); }
         header p { font-size: 1.1rem; opacity: 0.9; margin-top: 0.5rem; }
+        
+        /* Login Screen */
+        .screen { display: none; }
+        .screen.active { display: block; }
         
         .login-screen {
             max-width: 400px;
@@ -52,13 +56,109 @@
             cursor: pointer;
         }
         
-        .main-content {
+        /* Games List Screen */
+        .games-screen {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .games-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        .games-header h2 {
+            color: white;
+            font-size: 1.5rem;
+        }
+        .btn-new-game {
+            padding: 0.8rem 1.5rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: transform 0.2s;
+        }
+        .btn-new-game:hover { transform: translateY(-3px); }
+        
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+        .game-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .game-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .game-card-preview {
+            height: 120px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+        }
+        .game-card-preview.pending {
+            background: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        }
+        .game-card-info {
+            padding: 1rem;
+        }
+        .game-card-name {
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .game-card-date {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .game-card-status {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 50px;
+            font-size: 0.75rem;
+            margin-top: 0.5rem;
+        }
+        .status-completed { background: #e8f5e9; color: #2e7d32; }
+        .status-pending { background: #fff3e0; color: #ef6c00; }
+        .status-failed { background: #ffebee; color: #c62828; }
+        
+        .empty-games {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 20px;
+            color: #666;
+        }
+        .empty-games .emoji { font-size: 4rem; margin-bottom: 1rem; }
+        .empty-games p { margin-bottom: 1.5rem; }
+        
+        /* Editor Screen */
+        .editor-screen {
             display: none;
             grid-template-columns: 1fr 1.5fr;
             gap: 1.5rem;
-            margin-top: 1rem;
         }
-        @media (max-width: 900px) { .main-content { grid-template-columns: 1fr; } }
+        .editor-screen.active { display: grid; }
+        @media (max-width: 900px) { .editor-screen { grid-template-columns: 1fr; } }
         
         .panel {
             background: white;
@@ -68,37 +168,51 @@
         }
         .panel h2 { font-size: 1.3rem; color: #333; margin-bottom: 1rem; }
         
-        /* Current Game Banner */
-        .current-game-banner {
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: white;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.2);
+            border-radius: 50px;
+            border: none;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.3); }
+        
+        .current-game-info {
             background: linear-gradient(135deg, #4CAF50, #45a049);
             color: white;
             padding: 1rem;
             border-radius: 12px;
             margin-bottom: 1rem;
-            display: none;
         }
-        .current-game-banner.active { display: block; }
-        .current-game-banner h3 { font-size: 1rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
-        .game-name-display {
+        .current-game-info h3 {
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            background: rgba(255,255,255,0.2);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        .game-name-editable {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
         .game-name-text {
             font-weight: 700;
             font-size: 1.1rem;
         }
         .edit-name-btn {
-            background: none;
+            background: rgba(255,255,255,0.3);
             border: none;
             cursor: pointer;
-            font-size: 1rem;
-            opacity: 0.8;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
         }
-        .edit-name-btn:hover { opacity: 1; }
         .game-name-input {
             flex: 1;
             padding: 0.5rem;
@@ -108,50 +222,36 @@
             font-size: 1rem;
             display: none;
         }
-        .new-game-link {
-            display: block;
-            margin-top: 0.5rem;
-            color: rgba(255,255,255,0.9);
-            font-size: 0.85rem;
-            cursor: pointer;
-            text-decoration: underline;
-        }
         
         .prompt-area {
             width: 100%;
             height: 100px;
-            border: 3px solid #e0e0e0;
+            border: 3px solid #4CAF50;
             border-radius: 16px;
             padding: 1rem;
             font-family: inherit;
             font-size: 1.1rem;
             resize: none;
-        }
-        .prompt-area:focus { outline: none; border-color: #667eea; }
-        .prompt-area.improve-mode {
-            border-color: #4CAF50;
             background: #f8fff8;
         }
-        .prompt-area.improve-mode::placeholder { color: #4CAF50; }
+        .prompt-area:focus { outline: none; border-color: #2e7d32; }
+        .prompt-area::placeholder { color: #4CAF50; }
         
-        .btn-generate {
+        .btn-improve {
             width: 100%;
             padding: 1rem;
             margin-top: 1rem;
             font-size: 1.2rem;
             font-weight: 700;
             color: white;
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            background: linear-gradient(135deg, #4CAF50, #45a049);
             border: none;
             border-radius: 16px;
             cursor: pointer;
             transition: transform 0.2s;
         }
-        .btn-generate:hover { transform: translateY(-3px); }
-        .btn-generate:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-        .btn-generate.improve-mode {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-        }
+        .btn-improve:hover { transform: translateY(-3px); }
+        .btn-improve:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
         
         .images-section {
             margin-top: 1rem;
@@ -167,64 +267,6 @@
             border-radius: 8px;
             cursor: pointer;
             font-family: inherit;
-        }
-        
-        .examples { margin-top: 1rem; }
-        .examples h3 { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
-        .example-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-        .example-chip {
-            background: #f0f0f0;
-            padding: 0.4rem 0.8rem;
-            border-radius: 50px;
-            font-size: 0.85rem;
-            cursor: pointer;
-            border: none;
-        }
-        .example-chip:hover { background: #e0e0e0; }
-        
-        .my-games { margin-top: 1.5rem; padding-top: 1rem; border-top: 2px solid #f0f0f0; }
-        .my-games h3 { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
-        .games-list { max-height: 200px; overflow-y: auto; }
-        .game-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: #f5f5f5;
-            border-radius: 10px;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-        .game-item:hover { background: #e8e8e8; }
-        .game-item.active { background: #e8f5e9; border: 2px solid #4CAF50; }
-        .game-item-info { flex: 1; }
-        .game-item-name { font-weight: 600; font-size: 0.95rem; }
-        .game-item-date { font-size: 0.75rem; color: #888; margin-top: 2px; }
-        .game-item .status { font-size: 0.8rem; margin-right: 0.5rem; }
-        .status-pending { color: #f59e0b; }
-        .status-completed { color: #22c55e; }
-        .status-failed { color: #ef4444; }
-        
-        .game-panel h2 {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .game-title-editable {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .game-title-text { cursor: default; }
-        .game-title-input {
-            font-size: 1.3rem;
-            font-weight: 700;
-            border: 2px solid #667eea;
-            border-radius: 8px;
-            padding: 0.25rem 0.5rem;
-            font-family: inherit;
-            display: none;
         }
         
         .game-frame {
@@ -283,7 +325,6 @@
         .btn-action:hover { transform: translateY(-2px); }
         .btn-share { background: #4CAF50; color: white; }
         .btn-fullscreen { background: #2196F3; color: white; }
-        .btn-improve { background: #FF9800; color: white; }
         
         .user-info {
             position: fixed;
@@ -295,6 +336,7 @@
             font-size: 0.9rem;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 100;
+            cursor: pointer;
         }
         
         .toast {
@@ -312,8 +354,8 @@
         }
         .toast.show { opacity: 1; }
         
-        /* Share Modal */
-        .share-modal {
+        /* Create Game Modal */
+        .modal {
             position: fixed;
             top: 0;
             left: 0;
@@ -325,22 +367,71 @@
             justify-content: center;
             z-index: 200;
         }
-        .share-modal.active { display: flex; }
-        .share-modal-content {
+        .modal.active { display: flex; }
+        .modal-content {
             background: white;
             padding: 2rem;
             border-radius: 20px;
-            text-align: center;
-            max-width: 400px;
+            max-width: 500px;
             width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
         }
-        .share-modal h3 { margin-bottom: 1rem; }
+        .modal h3 { margin-bottom: 1rem; font-size: 1.3rem; }
+        .modal-close {
+            float: left;
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
+        }
+        .new-game-prompt {
+            width: 100%;
+            height: 120px;
+            border: 3px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 1rem;
+            font-family: inherit;
+            font-size: 1.1rem;
+            resize: none;
+            margin-bottom: 1rem;
+        }
+        .new-game-prompt:focus { outline: none; border-color: #667eea; }
+        .btn-create {
+            width: 100%;
+            padding: 1rem;
+            font-size: 1.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+        }
+        .examples { margin-bottom: 1rem; }
+        .examples h4 { font-size: 0.9rem; color: #666; margin-bottom: 0.5rem; }
+        .example-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+        .example-chip {
+            background: #f0f0f0;
+            padding: 0.4rem 0.8rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            border: none;
+        }
+        .example-chip:hover { background: #e0e0e0; }
+        
+        /* Share Modal */
+        .share-modal-content {
+            text-align: center;
+        }
         .share-url {
             background: #f0f0f0;
             padding: 1rem;
             border-radius: 10px;
             word-break: break-all;
-            margin-bottom: 1rem;
+            margin: 1rem 0;
             font-family: monospace;
         }
         .share-buttons { display: flex; gap: 0.5rem; }
@@ -364,73 +455,70 @@
             <p>תארו את המשחק שתרצו - ו-AI יבנה אותו בשבילכם!</p>
         </header>
 
-        <div class="login-screen" id="loginScreen">
-            <h2>👋 מה השם שלך?</h2>
-            <input type="text" id="nameInput" placeholder="הכנס את השם שלך" maxlength="20">
-            <button onclick="login()">🚀 בואו נתחיל!</button>
+        <!-- Login Screen -->
+        <div class="screen active" id="loginScreen">
+            <div class="login-screen">
+                <h2>👋 מה השם שלך?</h2>
+                <input type="text" id="nameInput" placeholder="הכנס את השם שלך" maxlength="20">
+                <button onclick="login()">🚀 בואו נתחיל!</button>
+            </div>
         </div>
 
-        <div class="main-content" id="mainContent">
+        <!-- Games List Screen -->
+        <div class="screen" id="gamesScreen">
+            <div class="games-screen">
+                <div class="games-header">
+                    <h2>🎮 המשחקים שלי</h2>
+                    <button class="btn-new-game" onclick="openCreateModal()">
+                        ✨ צור משחק חדש
+                    </button>
+                </div>
+                <div id="gamesGrid" class="games-grid"></div>
+            </div>
+        </div>
+
+        <!-- Editor Screen -->
+        <div class="screen editor-screen" id="editorScreen">
             <div class="panel">
-                <!-- Current Game Banner -->
-                <div class="current-game-banner" id="currentGameBanner">
-                    <h3>🎯 עובד על המשחק:</h3>
-                    <div class="game-name-display">
+                <button class="back-btn" onclick="showGamesScreen()">
+                    → חזרה למשחקים שלי
+                </button>
+                
+                <div class="current-game-info">
+                    <h3>🎯 עובד על:</h3>
+                    <div class="game-name-editable">
                         <span class="game-name-text" id="currentGameName">המשחק שלי</span>
                         <button class="edit-name-btn" onclick="toggleEditName()">✏️</button>
                         <input type="text" class="game-name-input" id="gameNameInput" onblur="saveGameName()" onkeypress="if(event.key==='Enter')saveGameName()">
                     </div>
-                    <span class="new-game-link" onclick="startNewGame()">➕ רוצה להתחיל משחק חדש?</span>
                 </div>
 
-                <h2 id="promptTitle">✨ מה המשחק שלך?</h2>
-                <textarea class="prompt-area" id="prompt" placeholder="תאר את המשחק שאתה רוצה...
+                <h2>🔧 מה לשפר?</h2>
+                <textarea class="prompt-area" id="improvePrompt" placeholder="מה תרצה לשפר במשחק?
 
-למשל: משחק נחש שאוכל תפוחים וגדל"></textarea>
+למשל: תוסיף צלילים, תגדיל את המהירות, תשנה צבעים..."></textarea>
                 
                 <div class="images-section">
-                    <h3>🖼️ תמונות למשחק (לא חובה):</h3>
+                    <h3>🖼️ תמונות נוספות (לא חובה):</h3>
                     <input type="file" id="imageInput" accept="image/*" multiple style="display:none;" onchange="handleImageUpload(event)">
                     <button class="btn-upload" onclick="document.getElementById('imageInput').click()">📤 העלה תמונות</button>
                     <div id="uploadedImages" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.5rem;"></div>
                 </div>
                 
-                <button class="btn-generate" id="generateBtn" onclick="submitGame()">
-                    🚀 צור את המשחק!
+                <button class="btn-improve" id="improveBtn" onclick="improveGame()">
+                    ✨ שפר את המשחק!
                 </button>
-
-                <div class="examples" id="examplesSection">
-                    <h3>💡 רעיונות:</h3>
-                    <div class="example-chips">
-                        <button class="example-chip" onclick="setExample('משחק זיכרון עם קלפים')">🃏 זיכרון</button>
-                        <button class="example-chip" onclick="setExample('משחק חללית שמתחמקת')">🚀 חללית</button>
-                        <button class="example-chip" onclick="setExample('תפוס את הפירות')">🍎 פירות</button>
-                        <button class="example-chip" onclick="setExample('חידון שאלות')">❓ חידון</button>
-                        <button class="example-chip" onclick="setExample('משחק נחש')">🐍 נחש</button>
-                    </div>
-                </div>
-
-                <div class="my-games">
-                    <h3>📂 המשחקים שלי:</h3>
-                    <div class="games-list" id="gamesList"></div>
-                </div>
             </div>
 
-            <div class="panel game-panel">
-                <h2>
-                    <div class="game-title-editable">
-                        <span>🎯</span>
-                        <span class="game-title-text" id="gamePanelTitle">המשחק שלך</span>
-                    </div>
-                </h2>
+            <div class="panel">
+                <h2>🎮 <span id="gamePanelTitle">המשחק</span></h2>
                 <div id="gameContainer">
                     <div class="empty-state">
                         <div class="emoji">🎨</div>
-                        <p>תאר את המשחק שלך ולחץ "צור את המשחק!"</p>
+                        <p>טוען את המשחק...</p>
                     </div>
                 </div>
                 <div class="game-actions" id="gameActions" style="display:none;">
-                    <button class="btn-action btn-improve" onclick="improveGame()">✨ שפר את המשחק</button>
                     <button class="btn-action btn-fullscreen" onclick="fullscreen()">📺 מסך מלא</button>
                     <button class="btn-action btn-share" onclick="openShareModal()">📤 שתף</button>
                 </div>
@@ -438,15 +526,40 @@
         </div>
     </div>
 
-    <div class="user-info" id="userInfo" style="display:none;">
+    <div class="user-info" id="userInfo" style="display:none;" onclick="showGamesScreen()">
         👤 <span id="userName"></span>
     </div>
     
     <div class="toast" id="toast"></div>
     
+    <!-- Create Game Modal -->
+    <div class="modal" id="createModal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeCreateModal()">×</button>
+            <h3>✨ צור משחק חדש</h3>
+            
+            <div class="examples">
+                <h4>💡 רעיונות:</h4>
+                <div class="example-chips">
+                    <button class="example-chip" onclick="setExample('משחק זיכרון עם קלפים')">🃏 זיכרון</button>
+                    <button class="example-chip" onclick="setExample('משחק חללית שמתחמקת')">🚀 חללית</button>
+                    <button class="example-chip" onclick="setExample('תפוס את הפירות')">🍎 פירות</button>
+                    <button class="example-chip" onclick="setExample('חידון שאלות')">❓ חידון</button>
+                    <button class="example-chip" onclick="setExample('משחק נחש')">🐍 נחש</button>
+                </div>
+            </div>
+            
+            <textarea class="new-game-prompt" id="newGamePrompt" placeholder="תאר את המשחק שאתה רוצה ליצור...
+
+למשל: משחק נחש שאוכל תפוחים וגדל"></textarea>
+            
+            <button class="btn-create" onclick="createGame()">🚀 צור את המשחק!</button>
+        </div>
+    </div>
+    
     <!-- Share Modal -->
-    <div class="share-modal" id="shareModal">
-        <div class="share-modal-content">
+    <div class="modal" id="shareModal">
+        <div class="modal-content share-modal-content">
             <h3>📤 שתף את המשחק!</h3>
             <p>שלח את הקישור לחברים:</p>
             <div class="share-url" id="shareUrl"></div>
@@ -463,12 +576,12 @@
         let currentGameName = null;
         let uploadedImages = [];
         let pollInterval = null;
-        let isImproveMode = false;
 
+        // Check for saved user
         const savedUser = localStorage.getItem('gameBuilderUser');
         if (savedUser) {
             currentUser = JSON.parse(savedUser);
-            showMainApp();
+            showGamesScreen();
         }
 
         async function login() {
@@ -485,29 +598,291 @@
                 });
                 currentUser = await response.json();
                 localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
-                showMainApp();
+                showGamesScreen();
             } catch (error) {
                 showToast('שגיאה בהתחברות');
             }
         }
 
-        function showMainApp() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('mainContent').style.display = 'grid';
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        async function showGamesScreen() {
+            showScreen('gamesScreen');
             document.getElementById('userInfo').style.display = 'block';
             document.getElementById('userName').textContent = currentUser.name;
-            loadMyGames();
+            await loadGames();
+        }
+
+        async function loadGames() {
+            try {
+                const response = await fetch(`/api/games/${currentUser.id}`);
+                const games = await response.json();
+                
+                const grid = document.getElementById('gamesGrid');
+                
+                if (games.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-games" style="grid-column: 1/-1;">
+                            <div class="emoji">🎨</div>
+                            <p>עדיין לא יצרת משחקים!</p>
+                            <button class="btn-new-game" onclick="openCreateModal()">✨ צור את המשחק הראשון שלך</button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                grid.innerHTML = games.map(game => `
+                    <div class="game-card" onclick="openGame('${game.id}', '${escapeHtml(game.name)}', '${game.status}')">
+                        <div class="game-card-preview ${game.status}">
+                            ${getGameEmoji(game.status)}
+                        </div>
+                        <div class="game-card-info">
+                            <div class="game-card-name">${game.name}</div>
+                            <div class="game-card-date">${formatTime(game.created_at)}</div>
+                            <span class="game-card-status status-${game.status}">${getStatusText(game.status)}</span>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error loading games:', error);
+            }
+        }
+
+        function getGameEmoji(status) {
+            if (status === 'pending') return '⏳';
+            if (status === 'failed') return '❌';
+            return '🎮';
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'pending': return 'בבנייה...';
+                case 'completed': return 'מוכן!';
+                case 'failed': return 'נכשל';
+                default: return status;
+            }
+        }
+
+        function formatTime(dateStr) {
+            const date = new Date(dateStr);
+            const now = new Date();
+            const diff = now - date;
+            
+            if (diff < 60000) return 'עכשיו';
+            if (diff < 3600000) return 'לפני ' + Math.floor(diff/60000) + ' דק\'';
+            if (diff < 86400000) return 'לפני ' + Math.floor(diff/3600000) + ' שעות';
+            return date.toLocaleDateString('he-IL');
+        }
+
+        function openCreateModal() {
+            document.getElementById('createModal').classList.add('active');
+            document.getElementById('newGamePrompt').value = '';
+            document.getElementById('newGamePrompt').focus();
+        }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('active');
         }
 
         function setExample(text) {
-            document.getElementById('prompt').value = text;
+            document.getElementById('newGamePrompt').value = text;
         }
 
         function generateGameName(prompt) {
-            // Take first 30 chars and clean up
-            let name = prompt.trim().slice(0, 30);
-            if (prompt.length > 30) name += '...';
+            let name = prompt.trim().slice(0, 25);
+            if (prompt.length > 25) name += '...';
             return name || 'משחק חדש';
+        }
+
+        async function createGame() {
+            const prompt = document.getElementById('newGamePrompt').value.trim();
+            if (!prompt) {
+                showToast('תאר את המשחק שאתה רוצה');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        prompt: prompt,
+                        images: []
+                    })
+                });
+
+                const data = await response.json();
+                closeCreateModal();
+                showToast('המשחק בבנייה! ⏳');
+                
+                // Open the game in editor
+                currentGameId = data.id;
+                currentGameName = generateGameName(prompt);
+                openGameEditor();
+                startPolling(data.id);
+                
+            } catch (error) {
+                showToast('שגיאה ביצירת המשחק');
+            }
+        }
+
+        async function openGame(id, name, status) {
+            currentGameId = id;
+            currentGameName = name;
+            
+            if (status === 'pending') {
+                openGameEditor();
+                showWaitingState();
+                startPolling(id);
+            } else {
+                openGameEditor();
+                await loadGameCode(id);
+            }
+        }
+
+        function openGameEditor() {
+            showScreen('editorScreen');
+            document.getElementById('currentGameName').textContent = currentGameName;
+            document.getElementById('gamePanelTitle').textContent = currentGameName;
+            document.getElementById('improvePrompt').value = '';
+            uploadedImages = [];
+            document.getElementById('uploadedImages').innerHTML = '';
+        }
+
+        async function loadGameCode(id) {
+            try {
+                const response = await fetch(`/api/status/${id}`);
+                const game = await response.json();
+                
+                if (game.status === 'completed' && game.code) {
+                    showGame(game.code);
+                } else if (game.status === 'pending') {
+                    showWaitingState();
+                    startPolling(id);
+                } else {
+                    showError(game.code || 'שגיאה בטעינת המשחק');
+                }
+            } catch (error) {
+                showError('שגיאה בטעינת המשחק');
+            }
+        }
+
+        function showWaitingState() {
+            document.getElementById('gameContainer').innerHTML = `
+                <div class="waiting-state">
+                    <div class="spinner"></div>
+                    <p>🤖 AI בונה את המשחק שלך...</p>
+                    <p style="font-size:0.9rem;color:#999;margin-top:0.5rem;">זה יכול לקחת עד דקה</p>
+                </div>
+            `;
+            document.getElementById('gameActions').style.display = 'none';
+        }
+
+        function showGame(code) {
+            document.getElementById('gameContainer').innerHTML = `<iframe class="game-frame" srcdoc="${escapeHtml(code)}"></iframe>`;
+            document.getElementById('gameActions').style.display = 'flex';
+        }
+
+        function showError(message) {
+            document.getElementById('gameContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="emoji">😅</div>
+                    <p>${message}</p>
+                </div>
+            `;
+        }
+
+        function startPolling(gameId) {
+            if (pollInterval) clearInterval(pollInterval);
+            
+            pollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/status/${gameId}`);
+                    const game = await response.json();
+                    
+                    if (game.status === 'completed') {
+                        clearInterval(pollInterval);
+                        showGame(game.code);
+                        showToast('המשחק מוכן! 🎉');
+                    } else if (game.status === 'failed') {
+                        clearInterval(pollInterval);
+                        showError(game.code || 'שגיאה ביצירת המשחק');
+                    }
+                } catch (error) {
+                    console.error('Polling error:', error);
+                }
+            }, 2000);
+        }
+
+        async function improveGame() {
+            const prompt = document.getElementById('improvePrompt').value.trim();
+            if (!prompt) {
+                showToast('מה לשפר במשחק?');
+                return;
+            }
+
+            const btn = document.getElementById('improveBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ שולח...';
+
+            try {
+                const response = await fetch('/api/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        prompt: `שפר את המשחק "${currentGameName}" (ID: ${currentGameId}): ${prompt}`,
+                        images: uploadedImages
+                    })
+                });
+
+                const data = await response.json();
+                currentGameId = data.id;
+                
+                showWaitingState();
+                startPolling(data.id);
+                showToast('משפר את המשחק! ⏳');
+                document.getElementById('improvePrompt').value = '';
+                
+            } catch (error) {
+                showToast('שגיאה בשליחת הבקשה');
+            }
+
+            btn.disabled = false;
+            btn.textContent = '✨ שפר את המשחק!';
+        }
+
+        function toggleEditName() {
+            const textEl = document.getElementById('currentGameName');
+            const inputEl = document.getElementById('gameNameInput');
+            
+            if (inputEl.style.display === 'none' || !inputEl.style.display) {
+                inputEl.value = currentGameName;
+                inputEl.style.display = 'block';
+                textEl.style.display = 'none';
+                inputEl.focus();
+            } else {
+                saveGameName();
+            }
+        }
+
+        function saveGameName() {
+            const textEl = document.getElementById('currentGameName');
+            const inputEl = document.getElementById('gameNameInput');
+            const newName = inputEl.value.trim();
+            
+            if (newName) {
+                currentGameName = newName;
+                textEl.textContent = currentGameName;
+                document.getElementById('gamePanelTitle').textContent = currentGameName;
+            }
+            
+            textEl.style.display = 'inline';
+            inputEl.style.display = 'none';
         }
 
         async function handleImageUpload(event) {
@@ -547,211 +922,6 @@
             element.remove();
         }
 
-        function setImproveMode(enabled) {
-            isImproveMode = enabled;
-            const prompt = document.getElementById('prompt');
-            const btn = document.getElementById('generateBtn');
-            const title = document.getElementById('promptTitle');
-            const examples = document.getElementById('examplesSection');
-            
-            if (enabled) {
-                prompt.classList.add('improve-mode');
-                prompt.placeholder = 'מה לשפר במשחק?\n\nלמשל: תוסיף צלילים, תגדיל את המהירות, תשנה צבעים...';
-                prompt.value = '';
-                btn.classList.add('improve-mode');
-                btn.innerHTML = '✨ שפר את המשחק!';
-                title.textContent = '🔧 מה לשפר?';
-                examples.style.display = 'none';
-            } else {
-                prompt.classList.remove('improve-mode');
-                prompt.placeholder = 'תאר את המשחק שאתה רוצה...\n\nלמשל: משחק נחש שאוכל תפוחים וגדל';
-                btn.classList.remove('improve-mode');
-                btn.innerHTML = '🚀 צור את המשחק!';
-                title.textContent = '✨ מה המשחק שלך?';
-                examples.style.display = 'block';
-            }
-        }
-
-        function updateCurrentGameBanner() {
-            const banner = document.getElementById('currentGameBanner');
-            const nameText = document.getElementById('currentGameName');
-            const panelTitle = document.getElementById('gamePanelTitle');
-            
-            if (currentGameId && currentGameName) {
-                banner.classList.add('active');
-                nameText.textContent = currentGameName;
-                panelTitle.textContent = currentGameName;
-            } else {
-                banner.classList.remove('active');
-                panelTitle.textContent = 'המשחק שלך';
-            }
-        }
-
-        function toggleEditName() {
-            const textEl = document.getElementById('currentGameName');
-            const inputEl = document.getElementById('gameNameInput');
-            
-            if (inputEl.style.display === 'none' || !inputEl.style.display) {
-                inputEl.value = currentGameName;
-                inputEl.style.display = 'block';
-                textEl.style.display = 'none';
-                inputEl.focus();
-            } else {
-                saveGameName();
-            }
-        }
-
-        function saveGameName() {
-            const textEl = document.getElementById('currentGameName');
-            const inputEl = document.getElementById('gameNameInput');
-            const newName = inputEl.value.trim();
-            
-            if (newName && newName !== currentGameName) {
-                currentGameName = newName;
-                // Could save to server here
-            }
-            
-            textEl.textContent = currentGameName;
-            textEl.style.display = 'inline';
-            inputEl.style.display = 'none';
-            updateCurrentGameBanner();
-        }
-
-        function startNewGame() {
-            currentGameId = null;
-            currentGameName = null;
-            isImproveMode = false;
-            uploadedImages = [];
-            
-            document.getElementById('prompt').value = '';
-            document.getElementById('uploadedImages').innerHTML = '';
-            document.getElementById('gameContainer').innerHTML = `
-                <div class="empty-state">
-                    <div class="emoji">🎨</div>
-                    <p>תאר את המשחק שלך ולחץ "צור את המשחק!"</p>
-                </div>
-            `;
-            document.getElementById('gameActions').style.display = 'none';
-            
-            setImproveMode(false);
-            updateCurrentGameBanner();
-            loadMyGames();
-        }
-
-        function improveGame() {
-            setImproveMode(true);
-            document.getElementById('prompt').focus();
-        }
-
-        async function submitGame() {
-            const prompt = document.getElementById('prompt').value.trim();
-            if (!prompt) {
-                showToast(isImproveMode ? 'מה לשפר במשחק?' : 'תאר את המשחק שאתה רוצה');
-                return;
-            }
-
-            const btn = document.getElementById('generateBtn');
-            btn.disabled = true;
-            btn.textContent = '⏳ שולח...';
-
-            try {
-                // If improving, reference the current game
-                let fullPrompt = prompt;
-                if (isImproveMode && currentGameId) {
-                    fullPrompt = `שפר את המשחק הקיים (ID: ${currentGameId}): ${prompt}`;
-                }
-
-                const response = await fetch('/api/request', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        userId: currentUser.id,
-                        prompt: fullPrompt,
-                        images: uploadedImages
-                    })
-                });
-
-                const data = await response.json();
-                currentGameId = data.id;
-                
-                // Generate game name from prompt if new game
-                if (!isImproveMode || !currentGameName) {
-                    currentGameName = generateGameName(prompt);
-                }
-                
-                updateCurrentGameBanner();
-                showWaitingState();
-                startPolling(data.id);
-                loadMyGames();
-                showToast(isImproveMode ? 'משפר את המשחק! ⏳' : 'הבקשה נשלחה! ⏳');
-                
-                // Stay in improve mode after submitting improvement
-                if (!isImproveMode) {
-                    document.getElementById('prompt').value = '';
-                }
-
-            } catch (error) {
-                showToast('שגיאה בשליחת הבקשה');
-            }
-
-            btn.disabled = false;
-            btn.innerHTML = isImproveMode ? '✨ שפר את המשחק!' : '🚀 צור את המשחק!';
-        }
-
-        function showWaitingState() {
-            document.getElementById('gameContainer').innerHTML = `
-                <div class="waiting-state">
-                    <div class="spinner"></div>
-                    <p>🤖 AI בונה את המשחק שלך...</p>
-                    <p style="font-size:0.9rem;color:#999;margin-top:0.5rem;">זה יכול לקחת עד דקה</p>
-                </div>
-            `;
-            document.getElementById('gameActions').style.display = 'none';
-        }
-
-        function startPolling(gameId) {
-            if (pollInterval) clearInterval(pollInterval);
-            
-            pollInterval = setInterval(async () => {
-                try {
-                    const response = await fetch(`/api/status/${gameId}`);
-                    const game = await response.json();
-                    
-                    if (game.status === 'completed') {
-                        clearInterval(pollInterval);
-                        showGame(game.code);
-                        loadMyGames();
-                        showToast('המשחק מוכן! 🎉');
-                        setImproveMode(true); // Switch to improve mode after game is ready
-                    } else if (game.status === 'failed') {
-                        clearInterval(pollInterval);
-                        showError(game.code || 'שגיאה ביצירת המשחק');
-                    }
-                } catch (error) {
-                    console.error('Polling error:', error);
-                }
-            }, 2000);
-        }
-
-        function showGame(code) {
-            document.getElementById('gameContainer').innerHTML = `<iframe class="game-frame" srcdoc="${escapeHtml(code)}"></iframe>`;
-            document.getElementById('gameActions').style.display = 'flex';
-        }
-
-        function showError(message) {
-            document.getElementById('gameContainer').innerHTML = `
-                <div class="empty-state">
-                    <div class="emoji">😅</div>
-                    <p>${message}</p>
-                    <p style="margin-top:0.5rem;font-size:0.9rem;">נסה שוב!</p>
-                </div>
-            `;
-        }
-
-        function escapeHtml(text) {
-            return text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
-
         function fullscreen() {
             const iframe = document.querySelector('.game-frame');
             if (iframe) {
@@ -780,7 +950,6 @@
                 showToast('הקישור הועתק! 📋');
                 closeShareModal();
             }).catch(() => {
-                // Fallback for older browsers
                 const textArea = document.createElement('textarea');
                 textArea.value = url;
                 document.body.appendChild(textArea);
@@ -792,77 +961,8 @@
             });
         }
 
-        async function loadMyGames() {
-            if (!currentUser) return;
-            
-            try {
-                const response = await fetch(`/api/games/${currentUser.id}`);
-                const games = await response.json();
-                
-                const list = document.getElementById('gamesList');
-                if (games.length === 0) {
-                    list.innerHTML = '<p style="color:#999;text-align:center;padding:1rem;">עדיין אין משחקים</p>';
-                    return;
-                }
-
-                list.innerHTML = games.map(game => `
-                    <div class="game-item ${game.id === currentGameId ? 'active' : ''}" onclick="loadGame('${game.id}', '${escapeHtml(game.name)}')">
-                        <div class="game-item-info">
-                            <div class="game-item-name">${game.name}</div>
-                            <div class="game-item-date">${formatTime(game.created_at)}</div>
-                        </div>
-                        <span class="status status-${game.status}">${getStatusEmoji(game.status)}</span>
-                    </div>
-                `).join('');
-            } catch (error) {
-                console.error('Error loading games:', error);
-            }
-        }
-
-        function getStatusEmoji(status) {
-            switch(status) {
-                case 'pending': return '⏳';
-                case 'completed': return '✅';
-                case 'failed': return '❌';
-                default: return '❓';
-            }
-        }
-
-        function formatTime(dateStr) {
-            const date = new Date(dateStr);
-            const now = new Date();
-            const diff = now - date;
-            
-            if (diff < 60000) return 'עכשיו';
-            if (diff < 3600000) return Math.floor(diff/60000) + ' דק\'';
-            if (diff < 86400000) return Math.floor(diff/3600000) + ' שעות';
-            return date.toLocaleDateString('he-IL');
-        }
-
-        async function loadGame(id, name) {
-            try {
-                const response = await fetch(`/api/status/${id}`);
-                const game = await response.json();
-                
-                currentGameId = id;
-                currentGameName = name || generateGameName(game.prompt || 'משחק');
-                updateCurrentGameBanner();
-                
-                if (game.status === 'completed') {
-                    showGame(game.code);
-                    setImproveMode(true);
-                } else if (game.status === 'pending') {
-                    showWaitingState();
-                    startPolling(id);
-                    setImproveMode(false);
-                } else {
-                    showError(game.code || 'שגיאה ביצירת המשחק');
-                }
-                
-                loadMyGames(); // Refresh to show active state
-            } catch (error) {
-                showToast('שגיאה בטעינת המשחק');
-            }
+        function escapeHtml(text) {
+            return text.replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         }
 
         function showToast(message) {
@@ -876,9 +976,17 @@
             if (e.key === 'Enter') login();
         });
         
-        // Close modal on background click
-        document.getElementById('shareModal').addEventListener('click', (e) => {
-            if (e.target.id === 'shareModal') closeShareModal();
+        document.getElementById('newGamePrompt').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.ctrlKey) createGame();
+        });
+        
+        // Close modals on background click
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
         });
     </script>
 </body>
