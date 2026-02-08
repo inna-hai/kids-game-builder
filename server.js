@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const OpenAI = require('openai');
+const Anthropic = require('@anthropic-ai/sdk');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
@@ -22,9 +22,9 @@ db.exec(`
   )
 `);
 
-// OpenAI setup
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+// Anthropic Claude setup
+const anthropic = new Anthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY
 });
 
 // System prompt for generating kid-friendly games
@@ -54,17 +54,16 @@ app.post('/api/generate', async (req, res) => {
       return res.status(400).json({ error: 'נדרש תיאור למשחק' });
     }
 
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 4096,
+      system: SYSTEM_PROMPT,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: prompt }
-      ],
-      max_tokens: 4000,
-      temperature: 0.7
+      ]
     });
 
-    const response = completion.choices[0].message.content;
+    const response = message.content[0].text;
     
     // Extract code from markdown
     const codeMatch = response.match(/```html\n([\s\S]*?)\n```/);

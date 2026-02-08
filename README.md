@@ -5,7 +5,7 @@ AI-powered game builder for kids ages 9-11. Kids describe a game in Hebrew, and 
 ## Features
 
 - 🇮🇱 Hebrew interface designed for kids
-- 🤖 AI-powered game generation (GPT-4)
+- 🤖 AI-powered game generation (Claude)
 - 🎨 Colorful, kid-friendly design
 - 💾 Save and share games
 - 📱 Works on desktop and mobile
@@ -17,8 +17,8 @@ AI-powered game builder for kids ages 9-11. Kids describe a game in Hebrew, and 
 # Install dependencies
 npm install
 
-# Set your OpenAI API key
-export OPENAI_API_KEY=sk-your-key-here
+# Set your Anthropic API key
+export ANTHROPIC_API_KEY=sk-ant-your-key-here
 
 # Run the server
 npm start
@@ -36,7 +36,7 @@ Open http://localhost:3002
 ## Tech Stack
 
 - Node.js + Express
-- OpenAI GPT-4o
+- Anthropic Claude Sonnet
 - SQLite for game storage
 - Vanilla JS frontend
 
@@ -44,7 +44,7 @@ Open http://localhost:3002
 
 | Variable | Description |
 |----------|-------------|
-| `OPENAI_API_KEY` | Your OpenAI API key |
+| `ANTHROPIC_API_KEY` | Your Anthropic API key |
 | `PORT` | Server port (default: 3002) |
 
 ## License
