@@ -128,6 +128,34 @@ app.get('/api/games/:userId', (req, res) => {
   res.json(games);
 });
 
+// Admin: Get all users with their games count
+app.get('/api/admin/users', (req, res) => {
+  const users = db.prepare(`
+    SELECT u.id, u.name, u.created_at,
+           COUNT(g.id) as games_count,
+           SUM(CASE WHEN g.status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+           SUM(CASE WHEN g.status = 'pending' THEN 1 ELSE 0 END) as pending_count
+    FROM users u
+    LEFT JOIN games g ON u.id = g.user_id
+    GROUP BY u.id
+    ORDER BY u.created_at DESC
+  `).all();
+  res.json(users);
+});
+
+// Admin: Get all games with user names
+app.get('/api/admin/games', (req, res) => {
+  const games = db.prepare(`
+    SELECT g.id, g.name, g.prompt, g.status, g.created_at, g.completed_at,
+           u.name as user_name
+    FROM games g
+    LEFT JOIN users u ON g.user_id = u.id
+    ORDER BY g.created_at DESC
+    LIMIT 50
+  `).all();
+  res.json(games);
+});
+
 // Serve game in iframe
 app.get('/play/:id', (req, res) => {
   const game = db.prepare('SELECT code, status FROM games WHERE id = ?').get(req.params.id);
