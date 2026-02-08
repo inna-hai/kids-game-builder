@@ -914,9 +914,22 @@
                     if (game.status === 'completed') {
                         clearInterval(pollInterval);
                         showGame(game.code);
-                        showToast('המשחק מוכן! 🎉');
+                        loadGames(); // Refresh games list
+                        // Play success sound
+                        try {
+                            const ctx = new AudioContext();
+                            const osc = ctx.createOscillator();
+                            osc.frequency.value = 523;
+                            osc.connect(ctx.destination);
+                            osc.start();
+                            setTimeout(() => { osc.frequency.value = 659; }, 150);
+                            setTimeout(() => { osc.frequency.value = 784; }, 300);
+                            osc.stop(ctx.currentTime + 0.5);
+                        } catch(e) {}
+                        showToast('🎉 המשחק מוכן! אפשר לשחק!');
                     } else if (game.status === 'failed') {
                         clearInterval(pollInterval);
+                        loadGames(); // Refresh games list
                         showError(game.code || 'שגיאה ביצירת המשחק');
                     }
                 } catch (error) {
@@ -924,6 +937,13 @@
                 }
             }, 2000);
         }
+        
+        // Auto-refresh games list every 10 seconds when on games screen
+        setInterval(() => {
+            if (document.getElementById('gamesScreen').classList.contains('active') && currentUser) {
+                loadGames();
+            }
+        }, 10000);
 
         async function improveGame() {
             const prompt = document.getElementById('improvePrompt').value.trim();
