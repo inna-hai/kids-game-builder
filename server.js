@@ -10,6 +10,29 @@ const OPENCLAW_GATEWAY_HOST = 'localhost';
 const OPENCLAW_GATEWAY_PORT = 18789;
 const OPENCLAW_TOKEN = 'e1cefafe040421e888f3e5e1583fb87e4394442c77010400';
 
+// Telegram notification configuration
+const TELEGRAM_BOT_TOKEN = '8368861598:AAGbPf97ZljNfvKRoLdHsXhlJzor-zLz5K0';
+const TELEGRAM_CHAT_ID = '-5277239901';
+const https = require('https');
+
+// Notify Telegram about new game request
+function notifyTelegram(gameId, prompt) {
+  const message = `@Innagr_bot Check if new queries arrived for the Kids Game Builder project`;
+  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(message)}`;
+  
+  https.get(url, (res) => {
+    if (res.statusCode === 200) {
+      console.log(`✅ Telegram notified about game ${gameId}`);
+    } else {
+      console.log(`⚠️ Telegram notification failed: ${res.statusCode}`);
+    }
+  }).on('error', (e) => {
+    console.log(`⚠️ Telegram notification error: ${e.message}`);
+  });
+  
+  console.log(`📱 Sending Telegram notification for game ${gameId}...`);
+}
+
 // Notify OpenClaw about new game request using wake event
 function notifyOpenClaw(gameId, prompt) {
   const message = `[GAME_REQUEST] gameId=${gameId} prompt=${prompt.slice(0, 100)}`;
@@ -141,6 +164,7 @@ app.post('/api/request', (req, res) => {
           .run(parentGameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
         
         notifyOpenClaw(parentGameId, prompt);
+        notifyTelegram(parentGameId, prompt);
         
         return res.json({ id: parentGameId, status: 'pending', message: 'משפרים את המשחק! ⏳', isImprovement: true });
       }
@@ -155,8 +179,9 @@ app.post('/api/request', (req, res) => {
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
       .run(id, 'user', `✨ יצרתי משחק: ${prompt}`);
 
-    // Notify OpenClaw immediately
+    // Notify OpenClaw and Telegram immediately
     notifyOpenClaw(id, prompt);
+    notifyTelegram(id, prompt);
 
     res.json({ id, status: 'pending', message: 'הבקשה נשלחה! המשחק ייווצר בקרוב...' });
   } catch (error) {
@@ -252,6 +277,7 @@ app.post('/api/improve', (req, res) => {
       .run(gameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
     
     notifyOpenClaw(gameId, prompt);
+    notifyTelegram(gameId, prompt);
     
     res.json({ id: gameId, status: 'pending', message: 'משפרים את המשחק! ⏳' });
   } catch (error) {
