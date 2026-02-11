@@ -3,35 +3,50 @@ const cors = require('cors');
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
+const http = require('http');
 
 // OpenClaw webhook configuration
-const OPENCLAW_GATEWAY = 'http://localhost:18789';
+const OPENCLAW_GATEWAY_HOST = 'localhost';
+const OPENCLAW_GATEWAY_PORT = 18789;
 const OPENCLAW_TOKEN = 'e1cefafe040421e888f3e5e1583fb87e4394442c77010400';
 
-// Notify OpenClaw about new game request
-async function notifyOpenClaw(gameId, prompt) {
-  try {
-    // Use sessions/send to send message to main session
-    const response = await fetch(`${OPENCLAW_GATEWAY}/api/sessions/send`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENCLAW_TOKEN}`
-      },
-      body: JSON.stringify({
-        sessionKey: 'agent:main:main',
-        message: `[GAME REQUEST] בקשה חדשה למשחק: ${gameId} - ${prompt.slice(0, 80)}`
-      })
-    });
-    
-    if (response.ok) {
+// Notify OpenClaw about new game request using wake event
+function notifyOpenClaw(gameId, prompt) {
+  const message = `[GAME_REQUEST] gameId=${gameId} prompt=${prompt.slice(0, 100)}`;
+  
+  const postData = JSON.stringify({
+    text: message,
+    mode: 'now'
+  });
+
+  const options = {
+    hostname: OPENCLAW_GATEWAY_HOST,
+    port: OPENCLAW_GATEWAY_PORT,
+    path: '/wake',
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
+      'Content-Length': Buffer.byteLength(postData)
+    }
+  };
+
+  const req = http.request(options, (res) => {
+    if (res.statusCode === 200) {
       console.log(`✅ OpenClaw notified about game ${gameId}`);
     } else {
-      console.log(`⚠️ OpenClaw notification failed: ${response.status}`);
+      console.log(`⚠️ OpenClaw notification failed: ${res.statusCode}`);
     }
-  } catch (error) {
-    console.log(`⚠️ OpenClaw notification error: ${error.message}`);
-  }
+  });
+
+  req.on('error', (e) => {
+    console.log(`⚠️ OpenClaw notification error: ${e.message}`);
+  });
+
+  req.write(postData);
+  req.end();
+  
+  console.log(`📤 Sending wake notification for game ${gameId}...`);
 }
 
 const app = express();
@@ -63,6 +78,15 @@ db.exec(`
     id TEXT PRIMARY KEY,
     name TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  
+  CREATE TABLE IF NOT EXISTS game_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    game_id TEXT,
+    role TEXT,
+    message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (game_id) REFERENCES games(id)
   );
 `);
 
@@ -112,6 +136,10 @@ app.post('/api/request', (req, res) => {
         db.prepare('UPDATE games SET prompt = ?, status = ?, completed_at = NULL WHERE id = ?')
           .run(improvePrompt, 'pending', parentGameId);
         
+        // Add to history
+        db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+          .run(parentGameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
+        
         notifyOpenClaw(parentGameId, prompt);
         
         return res.json({ id: parentGameId, status: 'pending', message: 'משפרים את המשחק! ⏳', isImprovement: true });
@@ -122,6 +150,10 @@ app.post('/api/request', (req, res) => {
     const id = uuidv4();
     db.prepare('INSERT INTO games (id, user_id, name, prompt, status) VALUES (?, ?, ?, ?, ?)')
       .run(id, userId, prompt.slice(0, 50), fullPrompt, 'pending');
+    
+    // Add to history
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(id, 'user', `✨ יצרתי משחק: ${prompt}`);
 
     // Notify OpenClaw immediately
     notifyOpenClaw(id, prompt);
@@ -150,7 +182,7 @@ app.get('/api/pending', (req, res) => {
 
 // Complete a game (Claude calls this after generating)
 app.post('/api/complete/:id', (req, res) => {
-  const { code } = req.body;
+  const { code, aiMessage } = req.body;
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
   
   if (!game) {
@@ -160,7 +192,72 @@ app.post('/api/complete/:id', (req, res) => {
   db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(code, 'completed', req.params.id);
   
+  // Add AI response to history
+  const message = aiMessage || '🤖 המשחק מוכן!';
+  db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+    .run(req.params.id, 'ai', message);
+  
   res.json({ success: true });
+});
+
+// Get game history
+app.get('/api/history/:id', (req, res) => {
+  const history = db.prepare('SELECT role, message, created_at FROM game_history WHERE game_id = ? ORDER BY created_at ASC')
+    .all(req.params.id);
+  res.json(history);
+});
+
+// Delete a game
+app.delete('/api/games/:id', (req, res) => {
+  const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
+  
+  if (!game) {
+    return res.status(404).json({ error: 'משחק לא נמצא' });
+  }
+  
+  db.prepare('DELETE FROM games WHERE id = ?').run(req.params.id);
+  res.json({ success: true, message: 'המשחק נמחק בהצלחה' });
+});
+
+// Improve existing game
+app.post('/api/improve', (req, res) => {
+  try {
+    const { gameId, prompt, images } = req.body;
+    
+    if (!gameId || !prompt) {
+      return res.status(400).json({ error: 'נדרש gameId ו-prompt' });
+    }
+    
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'משחק לא נמצא' });
+    }
+    
+    let fullPrompt = prompt;
+    if (images && images.length > 0) {
+      fullPrompt += '\n\nתמונות:\n';
+      images.forEach((url, i) => {
+        fullPrompt += `תמונה ${i + 1}: ${url}\n`;
+      });
+    }
+    
+    // Update game with improvement request
+    const improvePrompt = `שפר את המשחק הקיים:\n\nקוד נוכחי:\n${game.code}\n\nשיפורים מבוקשים:\n${fullPrompt}`;
+    
+    db.prepare('UPDATE games SET prompt = ?, status = ?, completed_at = NULL WHERE id = ?')
+      .run(improvePrompt, 'pending', gameId);
+    
+    // Add to history
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(gameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
+    
+    notifyOpenClaw(gameId, prompt);
+    
+    res.json({ id: gameId, status: 'pending', message: 'משפרים את המשחק! ⏳' });
+  } catch (error) {
+    console.error('Error improving game:', error);
+    res.status(500).json({ error: 'שגיאה בשיפור המשחק' });
+  }
 });
 
 // Mark as failed

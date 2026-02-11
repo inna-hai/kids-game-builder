@@ -22,6 +22,7 @@
         .screen { display: none; }
         .screen.active { display: block; }
         
+        /* Login Screen */
         .login-screen {
             max-width: 400px;
             margin: 2rem auto;
@@ -55,6 +56,7 @@
             cursor: pointer;
         }
         
+        /* Games List */
         .games-screen { max-width: 800px; margin: 0 auto; }
         .games-header {
             display: flex;
@@ -149,6 +151,7 @@
         .status-pending { background: #fff3cd; color: #856404; }
         .status-completed { background: #d4edda; color: #155724; }
         
+        /* Editor Screen */
         .editor-screen {
             display: none;
             grid-template-columns: 1fr 1.5fr;
@@ -191,6 +194,7 @@
         }
         .prompt-area:focus { outline: none; border-color: #667eea; }
         
+        /* Prompt Helper */
         .prompt-helper {
             background: #fff3cd;
             border-radius: 12px;
@@ -236,6 +240,7 @@
         }
         .btn-improve:disabled { opacity: 0.5; cursor: not-allowed; }
         
+        /* Game Container */
         #gameContainer {
             background: #1a1a2e;
             border-radius: 16px;
@@ -248,6 +253,7 @@
             border: none;
         }
         
+        /* Game Action Buttons */
         .game-actions {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -272,6 +278,7 @@
         .btn-explore { background: #FF9800; color: white; }
         .btn-share { background: #2196F3; color: white; }
         
+        /* Code Explorer Modal */
         .modal {
             display: none;
             position: fixed;
@@ -310,6 +317,7 @@
             cursor: pointer;
         }
         
+        /* Code Concepts */
         .code-concepts {
             display: flex;
             flex-direction: column;
@@ -347,12 +355,11 @@
             border-radius: 8px;
             font-family: monospace;
             font-size: 0.9rem;
-            direction: ltr;
-            text-align: left;
             overflow-x: auto;
         }
         .concept.expanded .concept-code { display: block; }
         
+        /* Challenge */
         .challenge-box {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
@@ -372,6 +379,7 @@
             cursor: pointer;
         }
         
+        /* Toast */
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -387,6 +395,7 @@
         }
         .toast.show { opacity: 1; }
         
+        /* Waiting State */
         .waiting-state {
             display: flex;
             flex-direction: column;
@@ -403,6 +412,7 @@
             50% { transform: translateY(-20px); }
         }
         
+        /* Create Modal */
         .create-modal .modal-content { max-width: 500px; }
         .example-prompts { margin-top: 1rem; }
         .example-prompts h4 { margin-bottom: 0.5rem; color: #666; }
@@ -433,6 +443,7 @@
             cursor: pointer;
         }
         
+        /* Share Modal */
         .share-link-box {
             display: flex;
             gap: 0.5rem;
@@ -454,41 +465,6 @@
             cursor: pointer;
             font-weight: 600;
         }
-        
-        .history-section {
-            margin-top: 1.5rem;
-            padding-top: 1rem;
-            border-top: 2px solid #e0e0e0;
-        }
-        .history-section h4 {
-            color: #666;
-            margin-bottom: 0.8rem;
-        }
-        .history-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .history-item {
-            padding: 0.6rem 0.8rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-        }
-        .history-item.user {
-            background: #e3f2fd;
-            border-right: 3px solid #2196F3;
-        }
-        .history-item.ai {
-            background: #f3e5f5;
-            border-right: 3px solid #9c27b0;
-        }
-        .history-time {
-            font-size: 0.75rem;
-            color: #999;
-            margin-top: 0.3rem;
-        }
     </style>
 </head>
 <body>
@@ -498,6 +474,7 @@
             <p>למד לעבוד עם AI דרך יצירת משחקים!</p>
         </header>
 
+        <!-- Login Screen -->
         <div class="screen active" id="loginScreen">
             <div class="login-screen">
                 <h2>👋 מה השם שלך?</h2>
@@ -506,6 +483,7 @@
             </div>
         </div>
 
+        <!-- Games List Screen -->
         <div class="screen" id="gamesScreen">
             <div class="games-screen">
                 <div class="games-header">
@@ -520,17 +498,12 @@
             </div>
         </div>
 
+        <!-- Editor Screen -->
         <div class="screen editor-screen" id="editorScreen">
             <div class="panel">
                 <button class="back-btn" onclick="showGamesScreen()">→ חזרה למשחקים שלי</button>
                 <h2>🎯 <span id="currentGameName">המשחק שלי</span></h2>
                 
-                <div id="historySection" class="history-section">
-                    <h4>💬 ההיסטוריה שלי עם ה-AI:</h4>
-                    <div id="historyList" class="history-list"></div>
-                </div>
-                
-                <div id="improveSection" style="display:none;">
                 <h3 style="margin-top:1rem;">🔧 שפר עם AI:</h3>
                 <textarea class="prompt-area" id="improvePrompt" placeholder="מה תרצה לשפר במשחק?
 
@@ -551,7 +524,6 @@
                 </div>
                 
                 <button class="btn-improve" id="improveBtn" onclick="improveGame()">✨ שפר את המשחק!</button>
-                </div>
             </div>
 
             <div class="panel">
@@ -571,6 +543,7 @@
         </div>
     </div>
 
+    <!-- Create Game Modal -->
     <div class="modal create-modal" id="createModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -578,7 +551,9 @@
                 <button class="modal-close" onclick="closeCreateModal()">✕</button>
             </div>
             <p>תאר ל-AI איזה משחק אתה רוצה. ככל שתתאר יותר טוב - המשחק יצא יותר מדויק!</p>
-            <textarea class="prompt-area" id="newGamePrompt" placeholder="תאר את המשחק שאתה רוצה..." oninput="checkNewPromptQuality()"></textarea>
+            <textarea class="prompt-area" id="newGamePrompt" placeholder="תאר את המשחק שאתה רוצה...
+
+למשל: משחק ריצה עם ארנב שקופץ מעל מכשולים ואוסף גזרים. יש 3 חיים ומד ניקוד למעלה." oninput="checkNewPromptQuality()"></textarea>
             
             <div class="prompt-quality">
                 <div class="quality-bar"><div class="quality-fill" id="newQualityFill" style="width:0%"></div></div>
@@ -592,15 +567,16 @@
             
             <div class="example-prompts">
                 <h4>🎯 דוגמאות לתיאורים טובים:</h4>
-                <button class="example-btn" onclick="setExample('משחק תפיסת כוכבים - כוכבים צהובים נופלים מלמעלה ואני צריך ללחוץ עליהם. יש טיימר של 30 שניות ומונה נקודות.')">⭐ תפיסת כוכבים</button>
-                <button class="example-btn" onclick="setExample('משחק זיכרון - 12 קלפים הפוכים עם אימוג\\'ים. לוחצים על 2 קלפים, אם יש התאמה הם נשארים.')">🃏 משחק זיכרון</button>
-                <button class="example-btn" onclick="setExample('חידון חשבון - שאלות כפל לילדים. 10 שאלות, 10 נקודות על כל תשובה נכונה.')">🔢 חידון חשבון</button>
+                <button class="example-btn" onclick="setExample('משחק תפיסת כוכבים - כוכבים צהובים נופלים מלמעלה ואני צריך ללחוץ עליהם לפני שהם נעלמים. יש טיימר של 30 שניות ומונה נקודות.')">⭐ תפיסת כוכבים</button>
+                <button class="example-btn" onclick="setExample('משחק זיכרון עם קלפים - 12 קלפים הפוכים עם אימוג\\'ים. לוחצים על 2 קלפים, אם יש התאמה הם נשארים גלויים. המטרה למצוא את כל הזוגות.')">🃏 משחק זיכרון</button>
+                <button class="example-btn" onclick="setExample('חידון חשבון - שאלות כפל וחילוק לילדים. יש 10 שאלות, על כל תשובה נכונה מקבלים 10 נקודות. בסוף רואים את הציון.')">🔢 חידון חשבון</button>
             </div>
             
             <button class="btn-create" id="createBtn" onclick="createGame()">🚀 צור את המשחק!</button>
         </div>
     </div>
 
+    <!-- Code Explorer Modal -->
     <div class="modal" id="codeExplorerModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -609,7 +585,9 @@
             </div>
             <p>ה-AI השתמש בטכניקות האלה כדי לבנות את המשחק שלך:</p>
             
-            <div class="code-concepts" id="codeConcepts"></div>
+            <div class="code-concepts" id="codeConcepts">
+                <!-- Filled dynamically -->
+            </div>
             
             <div class="challenge-box">
                 <h3>🎯 אתגר!</h3>
@@ -619,6 +597,7 @@
         </div>
     </div>
 
+    <!-- Share Modal -->
     <div class="modal" id="shareModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -642,17 +621,26 @@
         let currentGameCode = '';
         let pollingInterval = null;
 
+        // Login
         function login() {
             const name = document.getElementById('nameInput').value.trim();
-            if (!name) { showToast('הכנס את השם שלך'); return; }
-            
-            const saved = localStorage.getItem('gameBuilderUser');
-            if (saved) {
-                const p = JSON.parse(saved);
-                currentUser = p.name === name ? p : { id: generateId(), name };
-            } else {
-                currentUser = { id: generateId(), name };
+            if (!name) {
+                showToast('הכנס את השם שלך');
+                return;
             }
+            
+            const savedUser = localStorage.getItem('gameBuilderUser');
+            if (savedUser) {
+                const parsed = JSON.parse(savedUser);
+                if (parsed.name === name) {
+                    currentUser = parsed;
+                } else {
+                    currentUser = { id: generateId(), name: name };
+                }
+            } else {
+                currentUser = { id: generateId(), name: name };
+            }
+            
             localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
             showGamesScreen();
         }
@@ -664,21 +652,25 @@
             });
         }
 
-        function showScreen(id) {
+        // Screens
+        function showScreen(screenId) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
+            document.getElementById(screenId).classList.add('active');
         }
 
         async function showGamesScreen() {
-            if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
             showScreen('gamesScreen');
             await loadGames();
         }
 
         async function loadGames() {
             try {
-                const r = await fetch(`/api/games/${currentUser.id}`);
-                const games = await r.json();
+                const response = await fetch(`/api/games/${currentUser.id}`);
+                const games = await response.json();
                 
                 document.getElementById('gamesCount').textContent = games.length;
                 document.getElementById('userLevel').textContent = Math.floor(games.length / 3) + 1;
@@ -686,93 +678,163 @@
                 const grid = document.getElementById('gamesGrid');
                 
                 if (games.length === 0) {
-                    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:3rem;background:white;border-radius:20px;">
-                        <div style="font-size:4rem;margin-bottom:1rem;">🎨</div>
-                        <p style="font-size:1.2rem;margin-bottom:1rem;">עדיין לא יצרת משחקים!</p>
-                        <button class="btn-new-game" onclick="openCreateModal()">✨ צור את המשחק הראשון</button>
-                    </div>`;
+                    grid.innerHTML = `
+                        <div style="grid-column:1/-1;text-align:center;padding:3rem;background:white;border-radius:20px;">
+                            <div style="font-size:4rem;margin-bottom:1rem;">🎨</div>
+                            <p style="font-size:1.2rem;margin-bottom:1rem;">עדיין לא יצרת משחקים!</p>
+                            <button class="btn-new-game" onclick="openCreateModal()">✨ צור את המשחק הראשון</button>
+                        </div>
+                    `;
                     return;
                 }
 
-                grid.innerHTML = games.map(g => `
+                grid.innerHTML = games.map(game => `
                     <div class="game-card">
-                        <button class="delete-btn" onclick="event.stopPropagation();deleteGame('${g.id}','${esc(g.name)}')" title="מחק">🗑️</button>
-                        <div onclick="openGame('${g.id}','${esc(g.name)}','${g.status}')">
-                            <div class="game-card-preview ${g.status}">${g.status==='pending'?'<div style="animation:bounce 1s infinite">🔨</div>':g.status==='failed'?'❌':'🎮'}</div>
+                        <button class="delete-btn" onclick="event.stopPropagation(); deleteGame('${game.id}', '${escapeHtml(game.name)}')" title="מחק">🗑️</button>
+                        <div onclick="openGame('${game.id}', '${escapeHtml(game.name)}', '${game.status}')">
+                            <div class="game-card-preview ${game.status}">${getGameEmoji(game.status)}</div>
                             <div class="game-card-info">
-                                <div class="game-card-name">${g.name}</div>
-                                <div class="game-card-date">${new Date(g.created_at+' UTC').toLocaleDateString('he-IL')}</div>
-                                <span class="game-card-status status-${g.status}">${g.status==='pending'?'בבנייה...':g.status==='completed'?'מוכן!':'נכשל'}</span>
+                                <div class="game-card-name">${game.name}</div>
+                                <div class="game-card-date">${formatTime(game.created_at)}</div>
+                                <span class="game-card-status status-${game.status}">${getStatusText(game.status)}</span>
                             </div>
                         </div>
                     </div>
                 `).join('');
-            } catch (e) { console.error(e); }
+            } catch (error) {
+                console.error('Error loading games:', error);
+            }
         }
 
-        function esc(t) { return t.replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
+        function escapeHtml(text) {
+            return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
 
+        function getGameEmoji(status) {
+            if (status === 'pending') return '<div style="animation:bounce 1s infinite">🔨</div>';
+            if (status === 'failed') return '❌';
+            return '🎮';
+        }
+
+        function getStatusText(status) {
+            switch(status) {
+                case 'pending': return 'בבנייה...';
+                case 'completed': return 'מוכן!';
+                case 'failed': return 'נכשל';
+                default: return status;
+            }
+        }
+
+        function formatTime(dateStr) {
+            const date = new Date(dateStr + ' UTC');
+            return date.toLocaleDateString('he-IL');
+        }
+
+        // Create Game
         function openCreateModal() {
             document.getElementById('createModal').classList.add('show');
             document.getElementById('newGamePrompt').value = '';
             checkNewPromptQuality();
         }
-        function closeCreateModal() { document.getElementById('createModal').classList.remove('show'); }
-        function setExample(t) { document.getElementById('newGamePrompt').value = t; checkNewPromptQuality(); }
+
+        function closeCreateModal() {
+            document.getElementById('createModal').classList.remove('show');
+        }
+
+        function setExample(text) {
+            document.getElementById('newGamePrompt').value = text;
+            checkNewPromptQuality();
+        }
 
         function checkNewPromptQuality() {
-            const p = document.getElementById('newGamePrompt').value;
-            const { quality, tips } = analyzePrompt(p);
+            const prompt = document.getElementById('newGamePrompt').value;
+            const { quality, tips } = analyzePrompt(prompt);
             
             document.getElementById('newQualityFill').style.width = quality + '%';
             document.getElementById('newQualityFill').style.background = quality < 40 ? '#ff9800' : quality < 70 ? '#ffeb3b' : '#4CAF50';
-            document.getElementById('newQualityText').textContent = ['כתוב תיאור','התחלה טובה!','לא רע!','מעולה!'][Math.min(3,Math.floor(quality/30))];
             
-            const h = document.getElementById('newPromptHelper');
+            const qualityTexts = ['כתוב תיאור', 'התחלה טובה!', 'לא רע!', 'מעולה!'];
+            document.getElementById('newQualityText').textContent = qualityTexts[Math.min(3, Math.floor(quality / 30))];
+            
+            const helper = document.getElementById('newPromptHelper');
+            const tipsList = document.getElementById('newPromptTips');
+            
             if (tips.length > 0 && quality < 80) {
-                h.classList.add('show');
-                document.getElementById('newPromptTips').innerHTML = tips.map(t=>`<li>${t}</li>`).join('');
-            } else h.classList.remove('show');
+                helper.classList.add('show');
+                tipsList.innerHTML = tips.map(t => `<li>${t}</li>`).join('');
+            } else {
+                helper.classList.remove('show');
+            }
         }
 
-        function analyzePrompt(p) {
-            let q = 0, tips = [];
-            if (p.length > 10) q += 20;
-            if (p.length > 30) q += 20;
-            if (p.length > 60) q += 20;
-            if (/מהירות|מהיר|איטי/.test(p)) q += 10; else tips.push('הוסף מהירות');
-            if (/צבע|אדום|כחול|ירוק/.test(p)) q += 10; else tips.push('הוסף צבעים');
-            if (/נקודות|חיים|לב/.test(p)) q += 10; else tips.push('הוסף ניקוד או חיים');
-            if (/כש|אם|לוחץ/.test(p)) q += 10; else tips.push('הסבר מה קורה');
-            return { quality: Math.min(100, q), tips: tips.slice(0, 3) };
+        function analyzePrompt(prompt) {
+            let quality = 0;
+            let tips = [];
+            
+            if (prompt.length > 10) quality += 20;
+            if (prompt.length > 30) quality += 20;
+            if (prompt.length > 60) quality += 20;
+            
+            if (/מהירות|מהיר|איטי|קצב/.test(prompt)) quality += 10;
+            else tips.push('הוסף מהירות - מהיר או איטי?');
+            
+            if (/צבע|אדום|כחול|ירוק|צהוב|סגול|כתום/.test(prompt)) quality += 10;
+            else tips.push('הוסף צבעים - איזה צבעים תרצה?');
+            
+            if (/נקודות|ניקוד|חיים|לב|כוכב/.test(prompt)) quality += 10;
+            else tips.push('הוסף מערכת ניקוד או חיים');
+            
+            if (/כש|אם|לוחץ|נוגע|פוגע/.test(prompt)) quality += 10;
+            else tips.push('הסבר מה קורה - "כשלוחצים..." או "אם נוגעים..."');
+            
+            return { quality: Math.min(100, quality), tips: tips.slice(0, 3) };
         }
 
         async function createGame() {
-            const p = document.getElementById('newGamePrompt').value.trim();
-            if (!p) { showToast('תאר את המשחק'); return; }
+            const prompt = document.getElementById('newGamePrompt').value.trim();
+            if (!prompt) {
+                showToast('תאר את המשחק שאתה רוצה');
+                return;
+            }
 
             try {
-                const r = await fetch('/api/request', {
+                const response = await fetch('/api/request', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUser.id, prompt: p, images: [] })
+                    body: JSON.stringify({
+                        userId: currentUser.id,
+                        prompt: prompt,
+                        images: []
+                    })
                 });
-                const d = await r.json();
+
+                const data = await response.json();
                 closeCreateModal();
                 showToast('המשחק בבנייה! ⏳');
-                currentGameId = d.id;
-                currentGameName = p.slice(0, 25) + (p.length > 25 ? '...' : '');
+                
+                currentGameId = data.id;
+                currentGameName = prompt.slice(0, 25) + (prompt.length > 25 ? '...' : '');
                 openGameEditor();
-                startPolling(d.id);
-            } catch (e) { showToast('שגיאה'); }
+                startPolling(data.id);
+                
+            } catch (error) {
+                showToast('שגיאה ביצירת המשחק');
+            }
         }
 
+        // Game Editor
         async function openGame(id, name, status) {
             currentGameId = id;
             currentGameName = name;
+            
             openGameEditor();
-            if (status === 'pending') { showWaitingState(); startPolling(id); }
-            else await loadGameCode(id);
+            
+            if (status === 'pending') {
+                showWaitingState();
+                startPolling(id);
+            } else {
+                await loadGameCode(id);
+            }
         }
 
         function openGameEditor() {
@@ -780,139 +842,128 @@
             document.getElementById('currentGameName').textContent = currentGameName;
             document.getElementById('improvePrompt').value = '';
             checkPromptQuality();
-            loadHistory();
-        }
-        
-        async function loadHistory() {
-            try {
-                const r = await fetch(`/api/history/${currentGameId}`);
-                const history = await r.json();
-                
-                const list = document.getElementById('historyList');
-                if (history.length === 0) {
-                    list.innerHTML = '<p style="color:#999;font-size:0.9rem;">עוד אין היסטוריה</p>';
-                    return;
-                }
-                
-                list.innerHTML = history.map(h => `
-                    <div class="history-item ${h.role}">
-                        ${h.message}
-                        <div class="history-time">${formatHistoryTime(h.created_at)}</div>
-                    </div>
-                `).join('');
-            } catch (e) {
-                console.error(e);
-            }
-        }
-        
-        function formatHistoryTime(dateStr) {
-            const d = new Date(dateStr + ' UTC');
-            return d.toLocaleString('he-IL', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'numeric' });
         }
 
         async function loadGameCode(id) {
             try {
-                const r = await fetch(`/api/status/${id}`);
-                const g = await r.json();
-                if (g.status === 'completed' && g.code) { currentGameCode = g.code; showGame(g.code); }
-                else if (g.status === 'pending') { showWaitingState(); startPolling(id); }
-                else showError('שגיאה');
-            } catch (e) { showError('שגיאה'); }
+                const response = await fetch(`/api/status/${id}`);
+                const game = await response.json();
+                
+                if (game.status === 'completed' && game.code) {
+                    currentGameCode = game.code;
+                    showGame(game.code);
+                } else if (game.status === 'pending') {
+                    showWaitingState();
+                    startPolling(id);
+                } else {
+                    showError('שגיאה בטעינת המשחק');
+                }
+            } catch (error) {
+                showError('שגיאה בטעינת המשחק');
+            }
         }
 
         function showWaitingState() {
-            document.getElementById('gameContainer').innerHTML = `<div class="waiting-state">
-                <div class="building-animation">🤖</div>
-                <p style="font-size:1.3rem;margin-top:1rem;">ה-AI בונה את המשחק שלך...</p>
-                <p style="opacity:0.7;margin-top:0.5rem;">זה לוקח בערך דקה</p>
-            </div>`;
+            document.getElementById('gameContainer').innerHTML = `
+                <div class="waiting-state">
+                    <div class="building-animation">🤖</div>
+                    <p style="font-size:1.3rem;margin-top:1rem;">ה-AI בונה את המשחק שלך...</p>
+                    <p style="opacity:0.7;margin-top:0.5rem;">זה לוקח בערך דקה</p>
+                </div>
+            `;
             document.getElementById('gameActions').style.display = 'none';
-            document.getElementById('improveSection').style.display = 'none';
         }
 
         function showGame(code) {
-            const f = document.createElement('iframe');
-            f.srcdoc = code;
-            f.sandbox = 'allow-scripts allow-same-origin';
+            const iframe = document.createElement('iframe');
+            iframe.srcdoc = code;
+            iframe.sandbox = 'allow-scripts allow-same-origin';
+            
             document.getElementById('gameContainer').innerHTML = '';
-            document.getElementById('gameContainer').appendChild(f);
+            document.getElementById('gameContainer').appendChild(iframe);
             document.getElementById('gameActions').style.display = 'grid';
-            document.getElementById('improveSection').style.display = 'block';
         }
 
         function showError(msg) {
-            document.getElementById('gameContainer').innerHTML = `<div class="waiting-state"><div style="font-size:4rem;">😕</div><p>${msg}</p></div>`;
+            document.getElementById('gameContainer').innerHTML = `
+                <div class="waiting-state">
+                    <div style="font-size:4rem;">😕</div>
+                    <p>${msg}</p>
+                </div>
+            `;
         }
 
         function startPolling(id) {
             if (pollingInterval) clearInterval(pollingInterval);
+            
             pollingInterval = setInterval(async () => {
                 try {
-                    const r = await fetch(`/api/status/${id}`);
-                    const g = await r.json();
-                    if (g.status === 'completed' && g.code) {
+                    const response = await fetch(`/api/status/${id}`);
+                    const game = await response.json();
+                    
+                    if (game.status === 'completed' && game.code) {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
-                        currentGameCode = g.code;
-                        showGame(g.code);
+                        currentGameCode = game.code;
+                        showGame(game.code);
                         showToast('המשחק מוכן! 🎉');
-                        loadHistory();
-                    } else if (g.status === 'failed') {
+                    } else if (game.status === 'failed') {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
-                        showError('משהו השתבש');
+                        showError('משהו השתבש, נסה שוב');
                     }
                 } catch (e) {}
             }, 3000);
         }
 
+        // Improve
         function checkPromptQuality() {
-            const p = document.getElementById('improvePrompt').value;
-            const { quality } = analyzePrompt(p);
+            const prompt = document.getElementById('improvePrompt').value;
+            const { quality, tips } = analyzePrompt(prompt);
+            
             document.getElementById('qualityFill').style.width = quality + '%';
             document.getElementById('qualityFill').style.background = quality < 40 ? '#ff9800' : '#4CAF50';
-            document.getElementById('qualityText').textContent = p.length === 0 ? 'כתוב בקשה' : quality < 40 ? 'הוסף פרטים' : 'מוכן!';
+            
+            document.getElementById('qualityText').textContent = prompt.length === 0 ? 'כתוב בקשה' : quality < 40 ? 'הוסף פרטים' : 'מוכן!';
         }
 
         async function improveGame() {
-            const p = document.getElementById('improvePrompt').value.trim();
-            if (!p) { showToast('כתוב מה לשפר'); return; }
+            const prompt = document.getElementById('improvePrompt').value.trim();
+            if (!prompt) {
+                showToast('כתוב מה לשפר');
+                return;
+            }
 
             document.getElementById('improveBtn').disabled = true;
             document.getElementById('improveBtn').textContent = '⏳ משפר...';
             showWaitingState();
 
             try {
-                await fetch('/api/improve', {
+                const response = await fetch('/api/improve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ gameId: currentGameId, prompt: p, images: [] })
+                    body: JSON.stringify({
+                        gameId: currentGameId,
+                        prompt: prompt,
+                        images: []
+                    })
                 });
+
                 startPolling(currentGameId);
-            } catch (e) { showToast('שגיאה'); }
-            finally {
+            } catch (error) {
+                showToast('שגיאה בשיפור');
+            } finally {
                 document.getElementById('improveBtn').disabled = false;
                 document.getElementById('improveBtn').textContent = '✨ שפר את המשחק!';
             }
         }
 
+        // Code Explorer
         function openCodeExplorer() {
-            const concepts = [];
-            const c = currentGameCode;
+            const concepts = analyzeCode(currentGameCode);
             
-            if (/let\s+\w+\s*=|const\s+\w+\s*=/.test(c)) {
-                const m = c.match(/(let|const)\s+(\w+)\s*=\s*([^;]+)/);
-                concepts.push({ icon: '📦', name: 'משתנים', desc: 'מקום לשמור מידע - כמו קופסה עם שם', code: m ? m[0] : 'let score = 0;' });
-            }
-            if (/if\s*\(/.test(c)) concepts.push({ icon: '🔀', name: 'תנאים (if)', desc: 'בודק אם משהו נכון ואז עושה פעולה', code: 'if (score > 10) { win(); }' });
-            if (/function\s+\w+|=>\s*{/.test(c)) concepts.push({ icon: '⚡', name: 'פונקציות', desc: 'קוד שאפשר להפעיל שוב ושוב', code: 'function jump() { player.y -= 50; }' });
-            if (/addEventListener|onclick/.test(c)) concepts.push({ icon: '👆', name: 'אירועים', desc: 'כשמשהו קורה (לחיצה) - עשה פעולה', code: 'button.onclick = function() { score++; }' });
-            if (/setInterval|setTimeout/.test(c)) concepts.push({ icon: '⏱️', name: 'טיימרים', desc: 'הפעל קוד אחרי זמן מסוים', code: 'setInterval(update, 100);' });
-            if (/#[0-9a-fA-F]{3,6}/.test(c)) concepts.push({ icon: '🎨', name: 'צבעים', desc: 'צבעים בקוד עם # ומספרים', code: 'background: #FF5733;' });
-            if (concepts.length === 0) concepts.push({ icon: '💻', name: 'קוד HTML', desc: 'השפה שבונה דפי אינטרנט', code: '<div>שלום!</div>' });
-            
-            document.getElementById('codeConcepts').innerHTML = concepts.map(c => `
-                <div class="concept" onclick="this.classList.toggle('expanded')">
+            document.getElementById('codeConcepts').innerHTML = concepts.map((c, i) => `
+                <div class="concept" onclick="toggleConcept(this)">
                     <div class="concept-header">
                         <span class="concept-icon">${c.icon}</span>
                         <div class="concept-info">
@@ -921,72 +972,184 @@
                         </div>
                         <span class="concept-arrow">◀</span>
                     </div>
-                    <pre class="concept-code">${c.code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+                    <pre class="concept-code">${escapeHtmlCode(c.code)}</pre>
                 </div>
             `).join('');
             
             document.getElementById('codeExplorerModal').classList.add('show');
         }
-        function closeCodeExplorer() { document.getElementById('codeExplorerModal').classList.remove('show'); }
 
+        function closeCodeExplorer() {
+            document.getElementById('codeExplorerModal').classList.remove('show');
+        }
+
+        function toggleConcept(el) {
+            el.classList.toggle('expanded');
+        }
+
+        function escapeHtmlCode(code) {
+            return code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        }
+
+        function analyzeCode(code) {
+            const concepts = [];
+            
+            if (/let\s+\w+\s*=/.test(code) || /const\s+\w+\s*=/.test(code)) {
+                const match = code.match(/(let|const)\s+(\w+)\s*=\s*([^;]+)/);
+                concepts.push({
+                    icon: '📦',
+                    name: 'משתנים',
+                    desc: 'מקום לשמור מידע - כמו קופסה עם שם',
+                    code: match ? match[0] : 'let score = 0;'
+                });
+            }
+            
+            if (/if\s*\(/.test(code)) {
+                const match = code.match(/if\s*\([^)]+\)\s*\{[^}]*\}/);
+                concepts.push({
+                    icon: '🔀',
+                    name: 'תנאים (if)',
+                    desc: 'בודק אם משהו נכון ואז עושה פעולה',
+                    code: match ? match[0].slice(0, 100) : 'if (score > 10) { win(); }'
+                });
+            }
+            
+            if (/function\s+\w+|=>\s*{/.test(code)) {
+                concepts.push({
+                    icon: '⚡',
+                    name: 'פונקציות',
+                    desc: 'קוד שאפשר להפעיל שוב ושוב',
+                    code: 'function jump() {\n  player.y -= 50;\n}'
+                });
+            }
+            
+            if (/addEventListener|onclick|onkeydown/.test(code)) {
+                concepts.push({
+                    icon: '👆',
+                    name: 'אירועים',
+                    desc: 'כשמשהו קורה (לחיצה, מקש) - עשה פעולה',
+                    code: 'button.onclick = function() {\n  score++;\n}'
+                });
+            }
+            
+            if (/setInterval|setTimeout|requestAnimationFrame/.test(code)) {
+                concepts.push({
+                    icon: '⏱️',
+                    name: 'טיימרים',
+                    desc: 'הפעל קוד אחרי זמן מסוים או שוב ושוב',
+                    code: 'setInterval(update, 100);'
+                });
+            }
+            
+            if (/#[0-9a-fA-F]{3,6}|rgb\(|background|color/.test(code)) {
+                const match = code.match(/#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3}/);
+                concepts.push({
+                    icon: '🎨',
+                    name: 'צבעים',
+                    desc: 'צבעים בקוד נכתבים עם # ומספרים',
+                    code: match ? `background: ${match[0]};` : 'color: #FF5733;'
+                });
+            }
+            
+            if (concepts.length === 0) {
+                concepts.push({
+                    icon: '💻',
+                    name: 'קוד HTML',
+                    desc: 'השפה שבונה דפי אינטרנט ומשחקים',
+                    code: '<div>שלום עולם!</div>'
+                });
+            }
+            
+            return concepts;
+        }
+
+        // Challenge
         function startChallenge() {
-            const challenges = ['מצא את המספר שקובע את המהירות ושנה אותו!','חפש צבע בקוד (מתחיל ב-#) ושנה אותו!','מצא טקסט במשחק ושנה אותו!'];
-            document.getElementById('challengeText').textContent = challenges[Math.floor(Math.random()*challenges.length)];
+            const challenges = [
+                'מצא את המספר שקובע את המהירות ושנה אותו!',
+                'חפש צבע בקוד (מתחיל ב-#) ושנה אותו!',
+                'מצא את הטקסט שמופיע במשחק ושנה אותו!',
+                'חפש את מספר הנקודות ההתחלתי ושנה אותו!'
+            ];
+            const challenge = challenges[Math.floor(Math.random() * challenges.length)];
+            document.getElementById('challengeText').textContent = challenge;
             showToast('אתגר חדש! 💪');
         }
 
+        // Share
         function openShareModal() {
             document.getElementById('shareLink').value = `${window.location.origin}/play/${currentGameId}`;
             document.getElementById('shareModal').classList.add('show');
         }
-        function closeShareModal() { document.getElementById('shareModal').classList.remove('show'); }
+
+        function closeShareModal() {
+            document.getElementById('shareModal').classList.remove('show');
+        }
 
         function copyShareLink() {
             const url = document.getElementById('shareLink').value;
+            
             if (navigator.clipboard && window.isSecureContext) {
-                navigator.clipboard.writeText(url).then(() => { showToast('הקישור הועתק! 📋'); closeShareModal(); }).catch(() => fallbackCopy(url));
-            } else fallbackCopy(url);
-        }
-
-        function fallbackCopy(t) {
-            const i = document.createElement('input');
-            i.value = t; i.style.position = 'fixed'; i.style.left = '-9999px';
-            document.body.appendChild(i); i.select(); document.execCommand('copy');
-            document.body.removeChild(i);
-            showToast('הקישור הועתק! 📋'); closeShareModal();
-        }
-
-        async function deleteGame(id, name) {
-            if (!confirm(`למחוק את "${name}"?`)) return;
-            try {
-                console.log('Deleting game:', id);
-                const r = await fetch(`/api/games/${id}`, { method: 'DELETE' });
-                console.log('Delete response:', r.status);
-                if (r.ok) { showToast('נמחק! 🗑️'); loadGames(); }
-                else { 
-                    const err = await r.text();
-                    console.error('Delete failed:', err);
-                    showToast('שגיאה: ' + r.status); 
-                }
-            } catch (e) { 
-                console.error('Delete error:', e);
-                showToast('שגיאה: ' + e.message); 
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('הקישור הועתק! 📋');
+                    closeShareModal();
+                }).catch(() => fallbackCopy(url));
+            } else {
+                fallbackCopy(url);
             }
         }
 
+        function fallbackCopy(text) {
+            const input = document.createElement('input');
+            input.value = text;
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            showToast('הקישור הועתק! 📋');
+            closeShareModal();
+        }
+
+        // Delete
+        async function deleteGame(id, name) {
+            if (!confirm(`למחוק את "${name}"?`)) return;
+            
+            try {
+                const response = await fetch(`/api/games/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    showToast('נמחק! 🗑️');
+                    loadGames();
+                }
+            } catch (e) {
+                showToast('שגיאה במחיקה');
+            }
+        }
+
+        // Fullscreen
         function fullscreen() {
-            const f = document.querySelector('#gameContainer iframe');
-            if (f) { if (f.requestFullscreen) f.requestFullscreen(); else if (f.webkitRequestFullscreen) f.webkitRequestFullscreen(); }
+            const iframe = document.querySelector('#gameContainer iframe');
+            if (iframe) {
+                if (iframe.requestFullscreen) iframe.requestFullscreen();
+                else if (iframe.webkitRequestFullscreen) iframe.webkitRequestFullscreen();
+            }
         }
 
-        function showToast(m) {
-            const t = document.getElementById('toast');
-            t.textContent = m; t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 3000);
+        // Toast
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
         }
 
+        // Init
         const saved = localStorage.getItem('gameBuilderUser');
-        if (saved) { currentUser = JSON.parse(saved); document.getElementById('nameInput').value = currentUser.name; }
+        if (saved) {
+            currentUser = JSON.parse(saved);
+            document.getElementById('nameInput').value = currentUser.name;
+        }
     </script>
 </body>
 </html>
