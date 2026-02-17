@@ -298,6 +298,46 @@ app.get('/api/games/:userId', (req, res) => {
   res.json(games);
 });
 
+// Get user's games with code (for sync)
+app.get('/api/user/:userId/games', (req, res) => {
+  const games = db.prepare(`
+    SELECT id, name, prompt, code, status, created_at, completed_at 
+    FROM games 
+    WHERE user_id = ? AND status = 'completed' AND code IS NOT NULL
+    ORDER BY created_at DESC 
+    LIMIT 50
+  `).all(req.params.userId);
+  res.json({ games });
+});
+
+// Sync games from localStorage to DB
+app.post('/api/user/:userId/sync', (req, res) => {
+  const { userId } = req.params;
+  const { games } = req.body; // Array of {id, name, code, createdAt}
+  
+  if (!Array.isArray(games)) {
+    return res.status(400).json({ error: 'games must be an array' });
+  }
+  
+  let synced = 0;
+  for (const game of games) {
+    if (!game.id || !game.code) continue;
+    
+    // Check if game exists
+    const existing = db.prepare('SELECT id FROM games WHERE id = ?').get(game.id);
+    if (!existing) {
+      // Insert new game from localStorage
+      db.prepare(`
+        INSERT INTO games (id, user_id, name, code, status, created_at, completed_at)
+        VALUES (?, ?, ?, ?, 'completed', ?, CURRENT_TIMESTAMP)
+      `).run(game.id, userId, game.name || 'משחק מיובא', game.code, game.createdAt || new Date().toISOString());
+      synced++;
+    }
+  }
+  
+  res.json({ success: true, synced });
+});
+
 // Admin: Get all users with their games count
 app.get('/api/admin/users', (req, res) => {
   const users = db.prepare(`

@@ -642,19 +642,58 @@
         let currentGameCode = '';
         let pollingInterval = null;
 
-        function login() {
+        async function login() {
             const name = document.getElementById('nameInput').value.trim();
             if (!name) { showToast('הכנס את השם שלך'); return; }
             
-            const saved = localStorage.getItem('gameBuilderUser');
-            if (saved) {
-                const p = JSON.parse(saved);
-                currentUser = p.name === name ? p : { id: generateId(), name };
-            } else {
-                currentUser = { id: generateId(), name };
+            try {
+                // Get or create user from server (same name = same user)
+                const r = await fetch('/api/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name })
+                });
+                currentUser = await r.json();
+                localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
+                
+                // Sync any local games to server
+                await syncLocalGamesToServer();
+                
+                showGamesScreen();
+            } catch (e) {
+                console.error('Login error:', e);
+                // Fallback to local-only mode
+                const saved = localStorage.getItem('gameBuilderUser');
+                if (saved) {
+                    const p = JSON.parse(saved);
+                    currentUser = p.name === name ? p : { id: generateId(), name };
+                } else {
+                    currentUser = { id: generateId(), name };
+                }
+                localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
+                showGamesScreen();
             }
-            localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
-            showGamesScreen();
+        }
+        
+        async function syncLocalGamesToServer() {
+            try {
+                // Get games from localStorage (if any)
+                const localGames = JSON.parse(localStorage.getItem('localGames') || '[]');
+                if (localGames.length === 0) return;
+                
+                // Sync to server
+                await fetch(`/api/user/${currentUser.id}/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ games: localGames })
+                });
+                
+                // Clear local games after sync
+                localStorage.removeItem('localGames');
+                console.log('Synced local games to server');
+            } catch (e) {
+                console.error('Sync error:', e);
+            }
         }
 
         function generateId() {
