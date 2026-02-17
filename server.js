@@ -257,8 +257,14 @@ app.post('/api/complete/:id', (req, res) => {
   db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
     .run(code, 'completed', req.params.id);
   
-  // Add AI response to history
-  const message = aiMessage || '🤖 המשחק מוכן!';
+  // Check if this was an improvement (look for recent "ביקשתי לשפר" in history)
+  const lastUserMessage = db.prepare('SELECT message FROM game_history WHERE game_id = ? AND role = ? ORDER BY created_at DESC LIMIT 1')
+    .get(req.params.id, 'user');
+  const isImprovement = lastUserMessage?.message?.includes('ביקשתי לשפר');
+  
+  // Add AI response to history with appropriate message
+  const defaultMessage = isImprovement ? '🔧 השיפור הושלם!' : '🤖 המשחק מוכן!';
+  const message = aiMessage || defaultMessage;
   db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
     .run(req.params.id, 'ai', message);
   
@@ -315,9 +321,13 @@ app.post('/api/improve', (req, res) => {
     db.prepare('UPDATE games SET prompt = ?, status = ?, completed_at = NULL WHERE id = ?')
       .run(improvePrompt, 'pending', gameId);
     
-    // Add to history
+    // Add to history - user request
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
       .run(gameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
+    
+    // Add to history - AI working on it
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(gameId, 'ai', '⏳ משפר את המשחק...');
     
     // Pass existing code to notifyOpenClaw for improvement
     notifyOpenClaw(gameId, prompt, game.code);
