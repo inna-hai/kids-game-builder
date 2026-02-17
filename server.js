@@ -318,7 +318,8 @@ app.post('/api/improve', (req, res) => {
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
       .run(gameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
     
-    notifyOpenClaw(gameId, prompt);
+    // Pass existing code to notifyOpenClaw for improvement
+    notifyOpenClaw(gameId, prompt, game.code);
     
     res.json({ id: gameId, status: 'pending', message: 'משפרים את המשחק! ⏳' });
   } catch (error) {
