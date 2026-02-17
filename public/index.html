@@ -800,8 +800,10 @@
                 closeCreateModal();
                 showToast('המשחק בבנייה! ⏳');
                 currentGameId = d.id;
+                currentGameCode = null; // Reset - this is a new game
                 currentGameName = p.slice(0, 25) + (p.length > 25 ? '...' : '');
                 openGameEditor();
+                showWaitingState(); // Show building animation instead of old game
                 startPolling(d.id);
             } catch (e) { showToast('שגיאה'); }
         }
