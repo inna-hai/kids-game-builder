@@ -22,8 +22,7 @@ function notifyOpenClaw(gameId, prompt, existingCode = null) {
   const taskMessage = isImprovement 
     ? `שפר משחק קיים (gameId: ${gameId})
 
-**בקשת השיפור:**
-${improvementRequest}
+**בקשה לשיפור:** ${improvementRequest}
 
 **הקוד הנוכחי:**
 \`\`\`html
