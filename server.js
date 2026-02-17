@@ -13,25 +13,47 @@ const OPENCLAW_HOOK_TOKEN = 'game-builder-hook-2026';
 // Spawn OpenClaw agent to create the game
 function notifyOpenClaw(gameId, prompt, existingCode = null) {
   const isImprovement = existingCode && prompt.includes('שפר');
+  const improvementRequest = prompt.split('שיפורים מבוקשים:')[1]?.trim() || prompt.slice(-300);
   
   const taskMessage = isImprovement 
-    ? `שפר משחק קיים:
-gameId: ${gameId}
-בקשה: ${prompt.split('שיפורים מבוקשים:')[1] || prompt.slice(-500)}
+    ? `שפר משחק קיים (gameId: ${gameId})
 
-הוראות:
-1. קח את הקוד הקיים ובצע רק את השיפור המבוקש
-2. שלח את הקוד המעודכן עם:
-curl -X POST "http://129.159.135.204:3002/api/complete/${gameId}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`
-    : `צור משחק חדש:
-gameId: ${gameId}
-תיאור: ${prompt}
+**בקשת השיפור:**
+${improvementRequest}
 
-הוראות:
+**הקוד הנוכחי:**
+\`\`\`html
+${existingCode}
+\`\`\`
+
+**הוראות:**
+1. בצע רק את השיפור המבוקש - אל תשנה דברים אחרים
+2. כשתסיים, שלח ישירות עם node:
+\`\`\`javascript
+const http = require('http');
+const code = \`YOUR_IMPROVED_HTML_HERE\`;
+const data = JSON.stringify({ code });
+const req = http.request({ hostname: '129.159.135.204', port: 3002, path: '/api/complete/${gameId}', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, res => console.log('Done:', res.statusCode));
+req.write(data);
+req.end();
+\`\`\``
+    : `צור משחק חדש (gameId: ${gameId})
+
+**תיאור המשחק:**
+${prompt}
+
+**הוראות:**
 1. צור HTML מלא עם CSS ו-JavaScript (קובץ אחד)
-2. עברית RTL, עיצוב צבעוני לילדים
-3. שלח עם:
-curl -X POST "http://129.159.135.204:3002/api/complete/${gameId}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`;
+2. עברית RTL, עיצוב צבעוני ומהנה לילדים
+3. כשתסיים, שלח ישירות עם node:
+\`\`\`javascript
+const http = require('http');
+const code = \`YOUR_HTML_HERE\`;
+const data = JSON.stringify({ code });
+const req = http.request({ hostname: '129.159.135.204', port: 3002, path: '/api/complete/${gameId}', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, res => console.log('Done:', res.statusCode));
+req.write(data);
+req.end();
+\`\`\``;
 
   const postData = JSON.stringify({
     message: taskMessage,
