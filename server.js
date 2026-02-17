@@ -280,6 +280,8 @@ app.delete('/api/games/:id', (req, res) => {
     return res.status(404).json({ error: 'משחק לא נמצא' });
   }
   
+  // Delete related history first (foreign key constraint)
+  db.prepare('DELETE FROM game_history WHERE game_id = ?').run(req.params.id);
   db.prepare('DELETE FROM games WHERE id = ?').run(req.params.id);
   res.json({ success: true, message: 'המשחק נמחק בהצלחה' });
 });
