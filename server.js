@@ -10,6 +10,9 @@ const OPENCLAW_GATEWAY_HOST = 'localhost';
 const OPENCLAW_GATEWAY_PORT = 18789;
 const OPENCLAW_HOOK_TOKEN = 'game-builder-hook-2026';
 
+// Daily limit per user
+const DAILY_GAME_LIMIT = 5;
+
 // Spawn OpenClaw agent to create the game
 function notifyOpenClaw(gameId, prompt, existingCode = null) {
   const isImprovement = existingCode && prompt.includes('שפר');
@@ -159,6 +162,23 @@ app.post('/api/request', (req, res) => {
     
     if (!userId || !prompt) {
       return res.status(400).json({ error: 'נדרש userId ו-prompt' });
+    }
+
+    // Check daily limit (only for new games, not improvements)
+    if (!parentGameId) {
+      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      const todayCount = db.prepare(`
+        SELECT COUNT(*) as count FROM games 
+        WHERE user_id = ? AND date(created_at) = date(?)
+      `).get(userId, today);
+      
+      if (todayCount.count >= DAILY_GAME_LIMIT) {
+        return res.status(429).json({ 
+          error: `הגעת למגבלה היומית של ${DAILY_GAME_LIMIT} משחקים 🎮\nנסה שוב מחר!`,
+          limit: DAILY_GAME_LIMIT,
+          used: todayCount.count
+        });
+      }
     }
 
     let fullPrompt = prompt;
