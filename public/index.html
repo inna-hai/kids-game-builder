@@ -900,6 +900,9 @@
                         showGame(g.code);
                         showToast(wasImprovement ? '🔧 השיפור הושלם!' : '🎮 המשחק מוכן!');
                         loadHistory();
+                        // Clear the improvement input for next request
+                        document.getElementById('improvePrompt').value = '';
+                        checkPromptQuality();
                     } else if (g.status === 'failed') {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
