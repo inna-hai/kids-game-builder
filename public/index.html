@@ -839,6 +839,9 @@
                         <div class="history-time">${formatHistoryTime(h.created_at)}</div>
                     </div>
                 `).join('');
+                
+                // Auto-scroll to show latest messages
+                list.scrollTop = list.scrollHeight;
             } catch (e) {
                 console.error(e);
             }
@@ -892,9 +895,10 @@
                     if (g.status === 'completed' && g.code) {
                         clearInterval(pollingInterval);
                         pollingInterval = null;
+                        const wasImprovement = currentGameCode !== null;
                         currentGameCode = g.code;
                         showGame(g.code);
-                        showToast('המשחק מוכן! 🎉');
+                        showToast(wasImprovement ? '🔧 השיפור הושלם!' : '🎮 המשחק מוכן!');
                         loadHistory();
                     } else if (g.status === 'failed') {
                         clearInterval(pollingInterval);
