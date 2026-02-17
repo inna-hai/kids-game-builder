@@ -15,7 +15,8 @@ const DAILY_GAME_LIMIT = 20;
 
 // Spawn OpenClaw agent to create the game
 function notifyOpenClaw(gameId, prompt, existingCode = null) {
-  const isImprovement = existingCode && prompt.includes('שפר');
+  // If existingCode is provided, it's an improvement request
+  const isImprovement = !!existingCode;
   const improvementRequest = prompt.split('שיפורים מבוקשים:')[1]?.trim() || prompt.slice(-300);
   
   const taskMessage = isImprovement 
@@ -288,6 +289,7 @@ app.delete('/api/games/:id', (req, res) => {
 
 // Improve existing game
 app.post('/api/improve', (req, res) => {
+  console.log('📝 /api/improve called with:', { gameId: req.body.gameId, prompt: req.body.prompt?.slice(0, 50) });
   try {
     const { gameId, prompt, images } = req.body;
     
