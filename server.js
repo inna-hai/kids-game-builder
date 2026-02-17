@@ -11,7 +11,7 @@ const OPENCLAW_GATEWAY_PORT = 18789;
 const OPENCLAW_HOOK_TOKEN = 'game-builder-hook-2026';
 
 // Daily limit per user
-const DAILY_GAME_LIMIT = 5;
+const DAILY_GAME_LIMIT = 20;
 
 // Spawn OpenClaw agent to create the game
 function notifyOpenClaw(gameId, prompt, existingCode = null) {
