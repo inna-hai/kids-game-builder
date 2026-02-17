@@ -8,68 +8,68 @@ const http = require('http');
 // OpenClaw webhook configuration
 const OPENCLAW_GATEWAY_HOST = 'localhost';
 const OPENCLAW_GATEWAY_PORT = 18789;
-const OPENCLAW_TOKEN = 'e1cefafe040421e888f3e5e1583fb87e4394442c77010400';
+const OPENCLAW_HOOK_TOKEN = 'game-builder-hook-2026';
 
-// Telegram notification configuration
-const TELEGRAM_BOT_TOKEN = '8368861598:AAGbPf97ZljNfvKRoLdHsXhlJzor-zLz5K0';
-const TELEGRAM_CHAT_ID = '-5277239901';
-const https = require('https');
+// Spawn OpenClaw agent to create the game
+function notifyOpenClaw(gameId, prompt, existingCode = null) {
+  const isImprovement = existingCode && prompt.includes('שפר');
+  
+  const taskMessage = isImprovement 
+    ? `שפר משחק קיים:
+gameId: ${gameId}
+בקשה: ${prompt.split('שיפורים מבוקשים:')[1] || prompt.slice(-500)}
 
-// Notify Telegram about new game request
-function notifyTelegram(gameId, prompt) {
-  const message = `@Innagr_bot Check if new queries arrived for the Kids Game Builder project`;
-  const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage?chat_id=${TELEGRAM_CHAT_ID}&text=${encodeURIComponent(message)}`;
-  
-  https.get(url, (res) => {
-    if (res.statusCode === 200) {
-      console.log(`✅ Telegram notified about game ${gameId}`);
-    } else {
-      console.log(`⚠️ Telegram notification failed: ${res.statusCode}`);
-    }
-  }).on('error', (e) => {
-    console.log(`⚠️ Telegram notification error: ${e.message}`);
-  });
-  
-  console.log(`📱 Sending Telegram notification for game ${gameId}...`);
-}
+הוראות:
+1. קח את הקוד הקיים ובצע רק את השיפור המבוקש
+2. שלח את הקוד המעודכן עם:
+curl -X POST "http://129.159.135.204:3002/api/complete/${gameId}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`
+    : `צור משחק חדש:
+gameId: ${gameId}
+תיאור: ${prompt}
 
-// Notify OpenClaw about new game request using wake event
-function notifyOpenClaw(gameId, prompt) {
-  const message = `[GAME_REQUEST] gameId=${gameId} prompt=${prompt.slice(0, 100)}`;
-  
+הוראות:
+1. צור HTML מלא עם CSS ו-JavaScript (קובץ אחד)
+2. עברית RTL, עיצוב צבעוני לילדים
+3. שלח עם:
+curl -X POST "http://129.159.135.204:3002/api/complete/${gameId}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`;
+
   const postData = JSON.stringify({
-    text: message,
-    mode: 'now'
+    message: taskMessage,
+    name: 'GameBuilder',
+    sessionKey: `hook:game:${gameId}`,
+    wakeMode: 'now',
+    deliver: false,
+    timeoutSeconds: 180
   });
 
   const options = {
     hostname: OPENCLAW_GATEWAY_HOST,
     port: OPENCLAW_GATEWAY_PORT,
-    path: '/wake',
+    path: '/hooks/agent',
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
+      'Authorization': `Bearer ${OPENCLAW_HOOK_TOKEN}`,
       'Content-Length': Buffer.byteLength(postData)
     }
   };
 
   const req = http.request(options, (res) => {
-    if (res.statusCode === 200) {
-      console.log(`✅ OpenClaw notified about game ${gameId}`);
+    if (res.statusCode === 202) {
+      console.log(`✅ Game agent spawned for ${gameId}`);
     } else {
-      console.log(`⚠️ OpenClaw notification failed: ${res.statusCode}`);
+      console.log(`⚠️ Agent spawn failed: ${res.statusCode}`);
     }
   });
 
   req.on('error', (e) => {
-    console.log(`⚠️ OpenClaw notification error: ${e.message}`);
+    console.log(`⚠️ OpenClaw error: ${e.message}`);
   });
 
   req.write(postData);
   req.end();
   
-  console.log(`📤 Sending wake notification for game ${gameId}...`);
+  console.log(`🚀 Spawning game agent for ${gameId}...`);
 }
 
 const app = express();
@@ -163,8 +163,7 @@ app.post('/api/request', (req, res) => {
         db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
           .run(parentGameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
         
-        notifyOpenClaw(parentGameId, prompt);
-        notifyTelegram(parentGameId, prompt);
+        notifyOpenClaw(parentGameId, improvePrompt, parentGame.code);
         
         return res.json({ id: parentGameId, status: 'pending', message: 'משפרים את המשחק! ⏳', isImprovement: true });
       }
@@ -179,9 +178,8 @@ app.post('/api/request', (req, res) => {
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
       .run(id, 'user', `✨ יצרתי משחק: ${prompt}`);
 
-    // Notify OpenClaw and Telegram immediately
+    // Notify OpenClaw immediately
     notifyOpenClaw(id, prompt);
-    notifyTelegram(id, prompt);
 
     res.json({ id, status: 'pending', message: 'הבקשה נשלחה! המשחק ייווצר בקרוב...' });
   } catch (error) {
@@ -277,7 +275,6 @@ app.post('/api/improve', (req, res) => {
       .run(gameId, 'user', `🔧 ביקשתי לשפר: ${prompt}`);
     
     notifyOpenClaw(gameId, prompt);
-    notifyTelegram(gameId, prompt);
     
     res.json({ id: gameId, status: 'pending', message: 'משפרים את המשחק! ⏳' });
   } catch (error) {
