@@ -489,6 +489,126 @@
             color: #999;
             margin-top: 0.3rem;
         }
+        /* Gallery Styles */
+        .gallery-section {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 1.5rem;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        .gallery-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .gallery-header h2 {
+            color: white;
+            font-size: 1.4rem;
+            margin: 0;
+        }
+        .gallery-stats {
+            color: rgba(255,255,255,0.8);
+            font-size: 0.9rem;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .gallery-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .gallery-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .gallery-card-preview {
+            height: 120px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            overflow: hidden;
+        }
+        .gallery-card-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .gallery-card-info {
+            padding: 0.8rem;
+        }
+        .gallery-card-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-bottom: 0.3rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .gallery-card-creator {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .gallery-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.9);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        .gallery-modal.show { display: flex; }
+        .gallery-modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 900px;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+        .gallery-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #eee;
+        }
+        .gallery-modal-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        .gallery-modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+        }
+        .gallery-game-frame {
+            width: 100%;
+            height: 500px;
+            border: none;
+        }
+        @media (max-width: 600px) {
+            .gallery-game-frame { height: 400px; }
+        }
     </style>
 </head>
 <body>
@@ -503,6 +623,28 @@
                 <h2>👋 מה השם שלך?</h2>
                 <input type="text" id="nameInput" placeholder="הכנס את השם שלך" maxlength="20" onkeypress="if(event.key==='Enter')login()">
                 <button onclick="login()">🚀 בואו נתחיל!</button>
+            </div>
+            
+            <!-- Public Gallery -->
+            <div class="gallery-section" id="gallerySection">
+                <div class="gallery-header">
+                    <h2>🎮 משחקים שנבנו</h2>
+                    <span class="gallery-stats" id="galleryStats">טוען...</span>
+                </div>
+                <div class="gallery-grid" id="galleryGrid">
+                    <div style="text-align:center;padding:2rem;color:white;">⏳ טוען משחקים...</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Gallery Play Modal -->
+        <div class="gallery-modal" id="galleryModal">
+            <div class="gallery-modal-content">
+                <div class="gallery-modal-header">
+                    <h2 id="galleryModalTitle">משחק</h2>
+                    <button class="gallery-modal-close" onclick="closeGalleryModal()">✕</button>
+                </div>
+                <iframe id="galleryGameFrame" class="gallery-game-frame"></iframe>
             </div>
         </div>
 
@@ -1035,6 +1177,62 @@
 
         const saved = localStorage.getItem('gameBuilderUser');
         if (saved) { currentUser = JSON.parse(saved); document.getElementById('nameInput').value = currentUser.name; }
+
+        // Gallery Functions
+        async function loadGallery() {
+            try {
+                const r = await fetch('/api/gallery');
+                const games = await r.json();
+                
+                document.getElementById('galleryStats').textContent = `${games.length} משחקים`;
+                
+                if (games.length === 0) {
+                    document.getElementById('galleryGrid').innerHTML = '<div style="text-align:center;padding:2rem;color:white;grid-column:1/-1;">🎮 עדיין אין משחקים בגלריה</div>';
+                    return;
+                }
+                
+                const emojis = ['🎮','⭐','🚀','🎯','🌟','💫','🎪','🎨','🏆','⚽','🎲','🎸'];
+                
+                document.getElementById('galleryGrid').innerHTML = games.slice(0, 12).map((g, i) => `
+                    <div class="gallery-card" onclick="playGalleryGame('${g.id}','${esc(g.name)}')">
+                        <div class="gallery-card-preview" style="background:linear-gradient(135deg,${getGradient(i)})">
+                            ${g.thumbnail_url ? `<img src="${g.thumbnail_url}" alt="${esc(g.name)}" onerror="this.style.display='none';this.parentElement.innerHTML='${emojis[i % emojis.length]}'">` : emojis[i % emojis.length]}
+                        </div>
+                        <div class="gallery-card-info">
+                            <div class="gallery-card-name">${g.name}</div>
+                            <div class="gallery-card-creator">יוצר: ${g.creator || 'אנונימי'}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                console.error('Gallery error:', e);
+                document.getElementById('galleryGrid').innerHTML = '<div style="text-align:center;padding:2rem;color:white;">שגיאה בטעינה</div>';
+            }
+        }
+        
+        function getGradient(i) {
+            const gradients = [
+                '#667eea,#764ba2', '#f093fb,#f5576c', '#4facfe,#00f2fe',
+                '#43e97b,#38f9d7', '#fa709a,#fee140', '#a18cd1,#fbc2eb',
+                '#ff9a9e,#fecfef', '#ffecd2,#fcb69f', '#667eea,#764ba2',
+                '#11998e,#38ef7d', '#fc4a1a,#f7b733', '#6a11cb,#2575fc'
+            ];
+            return gradients[i % gradients.length];
+        }
+        
+        function playGalleryGame(id, name) {
+            document.getElementById('galleryModalTitle').textContent = name;
+            document.getElementById('galleryGameFrame').src = '/play/' + id;
+            document.getElementById('galleryModal').classList.add('show');
+        }
+        
+        function closeGalleryModal() {
+            document.getElementById('galleryModal').classList.remove('show');
+            document.getElementById('galleryGameFrame').src = '';
+        }
+        
+        // Load gallery on page load
+        loadGallery();
     </script>
 </body>
 </html>

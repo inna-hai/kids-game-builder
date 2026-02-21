@@ -4,6 +4,40 @@ const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const fs = require('fs');
 const http = require('http');
+const puppeteer = require('puppeteer');
+
+// Screenshot capture function
+async function captureGameScreenshot(gameId, htmlCode) {
+  try {
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    const page = await browser.newPage();
+    await page.setViewport({ width: 800, height: 600 });
+    
+    // Load the game HTML
+    await page.setContent(htmlCode, { waitUntil: 'networkidle0', timeout: 10000 });
+    
+    // Wait a bit for animations to start
+    await new Promise(r => setTimeout(r, 1000));
+    
+    // Take screenshot
+    const screenshotPath = `uploads/preview-${gameId}.jpg`;
+    await page.screenshot({ 
+      path: screenshotPath, 
+      type: 'jpeg', 
+      quality: 80 
+    });
+    
+    await browser.close();
+    console.log(`📸 Screenshot saved: ${screenshotPath}`);
+    return `/uploads/preview-${gameId}.jpg`;
+  } catch (e) {
+    console.error('Screenshot error:', e.message);
+    return null;
+  }
+}
 
 // OpenClaw webhook configuration
 const OPENCLAW_GATEWAY_HOST = 'localhost';
@@ -119,8 +153,19 @@ db.exec(`
     code TEXT,
     status TEXT DEFAULT 'pending',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    completed_at DATETIME
-  );
+    completed_at DATETIME,
+    thumbnail_url TEXT
+  );`);
+
+// Add thumbnail_url column if it doesn't exist (migration)
+try {
+  db.exec(`ALTER TABLE games ADD COLUMN thumbnail_url TEXT`);
+  console.log('Added thumbnail_url column');
+} catch (e) {
+  // Column already exists
+}
+
+db.exec(`
   
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -246,7 +291,7 @@ app.get('/api/pending', (req, res) => {
 });
 
 // Complete a game (Claude calls this after generating)
-app.post('/api/complete/:id', (req, res) => {
+app.post('/api/complete/:id', async (req, res) => {
   const { code, aiMessage } = req.body;
   const game = db.prepare('SELECT * FROM games WHERE id = ?').get(req.params.id);
   
@@ -267,6 +312,15 @@ app.post('/api/complete/:id', (req, res) => {
   const message = aiMessage || defaultMessage;
   db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
     .run(req.params.id, 'ai', message);
+  
+  // Capture screenshot in background (don't wait for it)
+  if (code && code.length > 500 && !code.includes('<!-- DUPLICATE')) {
+    captureGameScreenshot(req.params.id, code).then(thumbnailUrl => {
+      if (thumbnailUrl) {
+        db.prepare('UPDATE games SET thumbnail_url = ? WHERE id = ?').run(thumbnailUrl, req.params.id);
+      }
+    });
+  }
   
   res.json({ success: true });
 });
@@ -420,6 +474,49 @@ app.get('/api/admin/games', (req, res) => {
     LIMIT 50
   `).all();
   res.json(games);
+});
+
+// Public gallery - get all playable games (random order, only with thumbnails)
+app.get('/api/gallery', (req, res) => {
+  const games = db.prepare(`
+    SELECT g.id, g.name, g.created_at, g.thumbnail_url, u.name as creator
+    FROM games g
+    LEFT JOIN users u ON g.user_id = u.id
+    WHERE g.status = 'completed' 
+      AND g.code IS NOT NULL 
+      AND g.code NOT LIKE '%<!-- DUPLICATE%'
+      AND g.code NOT LIKE '%לא הבנתי%'
+      AND g.code NOT LIKE '%אופס%'
+      AND LENGTH(g.code) > 500
+      AND g.thumbnail_url IS NOT NULL
+    ORDER BY RANDOM()
+    LIMIT 100
+  `).all();
+  res.json(games);
+});
+
+// Generate thumbnails for existing games (admin endpoint)
+app.post('/api/admin/generate-thumbnails', async (req, res) => {
+  const games = db.prepare(`
+    SELECT id, code FROM games 
+    WHERE status = 'completed' 
+      AND thumbnail_url IS NULL 
+      AND code IS NOT NULL 
+      AND LENGTH(code) > 500
+      AND code NOT LIKE '%<!-- DUPLICATE%'
+    LIMIT 10
+  `).all();
+  
+  let generated = 0;
+  for (const game of games) {
+    const thumbnailUrl = await captureGameScreenshot(game.id, game.code);
+    if (thumbnailUrl) {
+      db.prepare('UPDATE games SET thumbnail_url = ? WHERE id = ?').run(thumbnailUrl, game.id);
+      generated++;
+    }
+  }
+  
+  res.json({ success: true, generated, remaining: games.length - generated });
 });
 
 // Serve game in iframe
