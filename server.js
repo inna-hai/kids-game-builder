@@ -39,81 +39,140 @@ async function captureGameScreenshot(gameId, htmlCode) {
   }
 }
 
-// OpenClaw webhook configuration
-const OPENCLAW_GATEWAY_HOST = 'localhost';
+// OpenClaw API configuration
+const OPENCLAW_GATEWAY_HOST = '127.0.0.1';
 const OPENCLAW_GATEWAY_PORT = 18789;
-const OPENCLAW_HOOK_TOKEN = 'game-builder-hook-2026';
+const OPENCLAW_API_TOKEN = '3b1d21abe3ba8de44948b414d6e8cb23b3213d923cff3acf';
 
 // Daily limit per user
 const DAILY_GAME_LIMIT = 20;
 
-// Spawn OpenClaw agent to create the game
-function notifyOpenClaw(gameId, prompt, existingCode = null) {
-  // If existingCode is provided, it's an improvement request
+// Create game via OpenClaw Chat Completions API
+async function createGameViaAPI(gameId, prompt, existingCode = null) {
   const isImprovement = !!existingCode;
-  const improvementRequest = prompt.split('שיפורים מבוקשים:')[1]?.trim() || prompt.slice(-300);
   
-  const taskMessage = isImprovement 
-    ? `שפר משחק קיים (gameId: ${gameId})
+  const systemPrompt = `אתה מפתח משחקים מומחה לילדים בגילאי 9-11. צור משחק HTML מלא (HTML+CSS+JS בקובץ אחד).
 
-**בקשה לשיפור:** ${improvementRequest}
+הכללים החובה:
+- עברית RTL מלאה
+- עיצוב צבעוני, מהנה ומזמין לילדים
+- פונטים ברורים וגדולים
+- כפתורים גדולים ונוחים ללחיצה
+- אנימציות ואפקטים מהנים
+- קוד נקי ופשוט
+- המשחק חייב לעבוד מיד בלי תלויות חיצוניות
 
-**הקוד הנוכחי:**
-\`\`\`html
+החזר רק את קוד ה-HTML המלא, בלי הסברים, בלי markdown, רק הקוד עצמו.`;
+
+  const userMessage = isImprovement 
+    ? `שפר את המשחק הקיים לפי הבקשה:
+
+בקשת שיפור: ${prompt.split('שיפורים מבוקשים:')[1]?.trim() || prompt}
+
+הקוד הנוכחי:
 ${existingCode}
-\`\`\`
 
-**הוראות:**
-1. בצע רק את השיפור המבוקש - אל תשנה דברים אחרים
-2. כשתסיים, שלח ישירות עם node:
-\`\`\`javascript
-const http = require('http');
-const code = \`YOUR_IMPROVED_HTML_HERE\`;
-const data = JSON.stringify({ code });
-const req = http.request({ hostname: '129.159.135.204', port: 3002, path: '/api/complete/${gameId}', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, res => console.log('Done:', res.statusCode));
-req.write(data);
-req.end();
-\`\`\``
-    : `צור משחק חדש (gameId: ${gameId})
+החזר את הקוד המשופר בלבד.`
+    : `צור משחק חדש לפי התיאור הבא:
 
-**תיאור המשחק:**
 ${prompt}
 
-**הוראות:**
-1. צור HTML מלא עם CSS ו-JavaScript (קובץ אחד)
-2. עברית RTL, עיצוב צבעוני ומהנה לילדים
-3. כשתסיים, שלח ישירות עם node:
-\`\`\`javascript
-const http = require('http');
-const code = \`YOUR_HTML_HERE\`;
-const data = JSON.stringify({ code });
-const req = http.request({ hostname: '129.159.135.204', port: 3002, path: '/api/complete/${gameId}', method: 'POST', headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(data) } }, res => console.log('Done:', res.statusCode));
-req.write(data);
-req.end();
-\`\`\``;
+החזר קוד HTML מלא בלבד.`;
 
   const postData = JSON.stringify({
-    message: taskMessage,
-    name: 'GameBuilder',
-    sessionKey: `hook:game:${gameId}`,
-    wakeMode: 'now',
-    deliver: false,
-    timeoutSeconds: 180
+    model: 'openclaw:main',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ],
+    max_tokens: 12000
   });
 
-  const options = {
+  return new Promise((resolve, reject) => {
+    const req = http.request({
+      hostname: OPENCLAW_GATEWAY_HOST,
+      port: OPENCLAW_GATEWAY_PORT,
+      path: '/v1/chat/completions',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENCLAW_API_TOKEN}`,
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(body);
+          let code = result.choices?.[0]?.message?.content || '';
+          
+          // Clean up the code - remove markdown if present
+          code = code.replace(/^```html?\n?/i, '').replace(/\n?```$/i, '').trim();
+          
+          if (code.includes('<!DOCTYPE') || code.includes('<html')) {
+            console.log(`✅ Game code generated for ${gameId} (${code.length} chars)`);
+            resolve(code);
+          } else {
+            reject(new Error('Invalid game code generated'));
+          }
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    
+    req.on('error', reject);
+    req.setTimeout(120000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
+    req.write(postData);
+    req.end();
+  });
+}
+
+// Legacy function - now uses the API directly
+function notifyOpenClaw(gameId, prompt, existingCode = null) {
+  console.log(`🚀 Creating game ${gameId} via OpenClaw API...`);
+  
+  createGameViaAPI(gameId, prompt, existingCode)
+    .then(code => {
+      // Save the game code directly
+      saveGameCode(gameId, code);
+    })
+    .catch(err => {
+      console.error(`❌ Game creation failed for ${gameId}:`, err.message);
+    });
+}
+
+// Helper to save game code
+function saveGameCode(gameId, code) {
+  try {
+    const stmt = db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?');
+    stmt.run(code, 'completed', gameId);
+    console.log(`💾 Game ${gameId} saved to database`);
+    
+    // Capture screenshot
+    captureGameScreenshot(gameId, code).then(url => {
+      if (url) {
+        const updateThumb = db.prepare('UPDATE games SET thumbnail_url = ? WHERE id = ?');
+        updateThumb.run(url, gameId);
+      }
+    });
+  } catch (e) {
+    console.error(`❌ Failed to save game ${gameId}:`, e.message);
+  }
+}
+
+// Old webhook approach - kept for reference but not used
+function notifyOpenClawLegacy(gameId, prompt, existingCode = null) {
+  const req = http.request({
     hostname: OPENCLAW_GATEWAY_HOST,
     port: OPENCLAW_GATEWAY_PORT,
     path: '/hooks/agent',
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${OPENCLAW_HOOK_TOKEN}`,
-      'Content-Length': Buffer.byteLength(postData)
-    }
-  };
-
-  const req = http.request(options, (res) => {
+    method: 'POST'
+  }, (res) => {
     if (res.statusCode === 202) {
       console.log(`✅ Game agent spawned for ${gameId}`);
     } else {

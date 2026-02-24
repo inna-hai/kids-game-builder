@@ -6,10 +6,10 @@
 const http = require('http');
 
 const CONFIG = {
-  GAME_API: 'http://localhost:3002',
+  GAME_API: 'http://localhost:5173',
   OPENCLAW_PORT: 18789,
-  OPENCLAW_TOKEN: 'e1cefafe040421e888f3e5e1583fb87e4394442c77010400',
-  CHECK_INTERVAL: 60000, // 1 minute
+  OPENCLAW_TOKEN: '3b1d21abe3ba8de44948b414d6e8cb23b3213d923cff3acf',
+  CHECK_INTERVAL: 30000, // 30 seconds - faster for kids!
   PROCESSING: new Set() // Track games being processed
 };
 
@@ -99,7 +99,7 @@ gameId: ${game.id}
 1. קח את הקוד הקיים מהבקשה
 2. בצע רק את השיפור המבוקש (אל תשנה דברים אחרים)
 3. שלח את הקוד המעודכן עם:
-curl -X POST "http://129.159.135.204:3002/api/games/${game.id}/complete" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`
+curl -X POST "http://localhost:5173/api/complete/${game.id}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`
       : `צור משחק חדש:
 gameId: ${game.id}
 תיאור: ${game.prompt}
@@ -108,7 +108,7 @@ gameId: ${game.id}
 1. צור HTML מלא עם JavaScript (קובץ אחד, בעברית RTL)
 2. עיצוב יפה וצבעוני לילדים
 3. שלח עם:
-curl -X POST "http://129.159.135.204:3002/api/games/${game.id}/complete" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`;
+curl -X POST "http://localhost:5173/api/complete/${game.id}" -H "Content-Type: application/json" -d '{"code": "YOUR_HTML_CODE"}'`;
 
     await spawnSubagent(task);
     
