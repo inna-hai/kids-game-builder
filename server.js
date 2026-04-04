@@ -51,18 +51,20 @@ const DAILY_GAME_LIMIT = 20;
 async function createGameViaAPI(gameId, prompt, existingCode = null) {
   const isImprovement = !!existingCode;
   
-  const systemPrompt = `אתה מפתח משחקים מומחה לילדים בגילאי 9-11. צור משחק HTML מלא (HTML+CSS+JS בקובץ אחד).
+  const systemPrompt = isImprovement 
+    ? `אתה מפתח משחקים לילדים. שפר את המשחק הקיים לפי הבקשה. שמור על המבנה הקיים והוסף/שנה רק מה שביקשו. החזר HTML מלא בלבד, בלי הסברים.`
+    : `אתה מפתח משחקים לילדים בגילאי 9-11. צור גרסה ראשונה פשוטה ומהירה של המשחק.
 
-הכללים החובה:
-- עברית RTL מלאה
-- עיצוב צבעוני, מהנה ומזמין לילדים
-- פונטים ברורים וגדולים
-- כפתורים גדולים ונוחים ללחיצה
-- אנימציות ואפקטים מהנים
-- קוד נקי ופשוט
-- המשחק חייב לעבוד מיד בלי תלויות חיצוניות
+חוקים:
+- HTML+CSS+JS בקובץ אחד, עברית RTL
+- קוד קצר ופשוט — עד 150 שורות קוד מקסימום!
+- מכניקה בסיסית אחת שעובדת טוב
+- עיצוב נקי עם צבעים (לא צריך להיות מורכב)
+- ניקוד בסיסי
+- המשחק חייב לעבוד מיד
 
-החזר רק את קוד ה-HTML המלא, בלי הסברים, בלי markdown, רק הקוד עצמו.`;
+אל תבנה משחק מושלם — בנה גרסה ראשונה שהילד יוכל לשחק ואז לשפר!
+החזר רק HTML, בלי הסברים, בלי markdown.`;
 
   const userMessage = isImprovement 
     ? `שפר את המשחק הקיים לפי הבקשה:
@@ -80,12 +82,12 @@ ${prompt}
 החזר קוד HTML מלא בלבד.`;
 
   const postData = JSON.stringify({
-    model: 'openclaw:main',
+    model: 'anthropic/claude-sonnet-4-20250514',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage }
     ],
-    max_tokens: 12000
+    max_tokens: 6000
   });
 
   return new Promise((resolve, reject) => {
@@ -123,7 +125,7 @@ ${prompt}
     });
     
     req.on('error', reject);
-    req.setTimeout(120000, () => {
+    req.setTimeout(300000, () => {
       req.destroy();
       reject(new Error('Request timeout'));
     });
@@ -132,18 +134,81 @@ ${prompt}
   });
 }
 
-// Legacy function - now uses the API directly
-function notifyOpenClaw(gameId, prompt, existingCode = null) {
-  console.log(`🚀 Creating game ${gameId} via OpenClaw API...`);
+// Chat with AI helper (for conversation flow, not code generation)
+const CHAT_SYSTEM_PROMPT = `אתה עוזר יצירתי לילדים שרוצים ליצור משחקים. התפקיד שלך: תן פידבק קצר על הרעיון, הצע 2 שיפורים, שאל שאלה אחת, ותן דוגמת פרומפט משופר. דבר בעברית, קצר ומהנה! בסוף ההודעה כתוב: "כשמוכנים — לוחצים על הכפתור **יאללה, תבנה! 🚀** למטה"`;
+
+async function chatWithAI(messages) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 20000);
   
-  createGameViaAPI(gameId, prompt, existingCode)
-    .then(code => {
-      // Save the game code directly
-      saveGameCode(gameId, code);
-    })
-    .catch(err => {
-      console.error(`❌ Game creation failed for ${gameId}:`, err.message);
+  try {
+    const response = await fetch(`http://${OPENCLAW_GATEWAY_HOST}:${OPENCLAW_GATEWAY_PORT}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENCLAW_API_TOKEN}`
+      },
+      body: JSON.stringify({
+        model: 'anthropic/claude-sonnet-4-20250514',
+        messages: [
+          { role: 'system', content: CHAT_SYSTEM_PROMPT },
+          ...messages
+        ],
+        max_tokens: 500
+      }),
+      signal: controller.signal
     });
+    
+    clearTimeout(timeout);
+    const result = await response.json();
+    const content = result.choices?.[0]?.message?.content || '';
+    if (!content) throw new Error('Empty AI response');
+    return content;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
+  }
+}
+
+// Start conversation with AI about the game idea
+async function startConversation(gameId, prompt) {
+  const messages = [{ role: 'user', content: prompt }];
+  
+  const aiResponse = await chatWithAI(messages);
+  
+  // Save AI response to history
+  db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+    .run(gameId, 'assistant', aiResponse);
+  
+  return aiResponse;
+}
+
+// Build queue - up to 3 concurrent builds
+const MAX_CONCURRENT_BUILDS = 5;
+let activeBuilds = 0;
+let buildQueue = [];
+
+function notifyOpenClaw(gameId, prompt, existingCode = null) {
+  buildQueue.push({ gameId, prompt, existingCode });
+  processQueue();
+}
+
+async function processQueue() {
+  while (activeBuilds < MAX_CONCURRENT_BUILDS && buildQueue.length > 0) {
+    activeBuilds++;
+    const { gameId, prompt, existingCode } = buildQueue.shift();
+    console.log(`🚀 Creating game ${gameId} via OpenClaw API... (active: ${activeBuilds}, queued: ${buildQueue.length})`);
+    createGameViaAPI(gameId, prompt, existingCode)
+      .then(code => saveGameCode(gameId, code))
+      .catch(err => {
+        console.error(`❌ Game creation failed for ${gameId}:`, err.message);
+        db.prepare("UPDATE games SET status='failed', code=? WHERE id=?").run(err.message, gameId);
+      })
+      .finally(() => {
+        activeBuilds--;
+        processQueue();
+      });
+  }
 }
 
 // Helper to save game code
@@ -260,7 +325,7 @@ app.post('/api/user', (req, res) => {
 });
 
 // Submit game request (goes to queue for Claude to process)
-app.post('/api/request', (req, res) => {
+app.post('/api/request', async (req, res) => {
   try {
     const { userId, prompt, images, parentGameId } = req.body;
     
@@ -315,19 +380,27 @@ app.post('/api/request', (req, res) => {
       }
     }
 
-    // New game
+    // New game - start conversation first
     const id = uuidv4();
     db.prepare('INSERT INTO games (id, user_id, name, prompt, status) VALUES (?, ?, ?, ?, ?)')
-      .run(id, userId, prompt.slice(0, 50), fullPrompt, 'pending');
+      .run(id, userId, prompt.slice(0, 50), fullPrompt, 'chatting');
     
-    // Add to history
+    // Add user message to history
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-      .run(id, 'user', `✨ יצרתי משחק: ${prompt}`);
+      .run(id, 'user', prompt);
 
-    // Notify OpenClaw immediately
-    notifyOpenClaw(id, prompt);
-
-    res.json({ id, status: 'pending', message: 'הבקשה נשלחה! המשחק ייווצר בקרוב...' });
+    // Respond immediately, start conversation in background
+    res.json({ id, status: 'chatting', message: null });
+    
+    // Start conversation in background
+    startConversation(id, fullPrompt).catch(e => {
+      console.error('Conversation start failed:', e.message);
+      // Fallback: build directly if chat fails
+      db.prepare('UPDATE games SET status = ? WHERE id = ?').run('pending', id);
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(id, 'assistant', '🚀 בונה את המשחק! זה ייקח דקה-שתיים...');
+      notifyOpenClaw(id, fullPrompt);
+    });
   } catch (error) {
     console.error('Error submitting request:', error);
     res.status(500).json({ error: 'שגיאה בשליחת הבקשה' });
@@ -341,6 +414,109 @@ app.get('/api/status/:id', (req, res) => {
     return res.status(404).json({ error: 'משחק לא נמצא' });
   }
   res.json(game);
+});
+
+// Chat with AI about a game (conversation flow)
+app.post('/api/chat/:id', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const gameId = req.params.id;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'נדרשת הודעה' });
+    }
+    
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'משחק לא נמצא' });
+    }
+    if (game.status !== 'chatting') {
+      return res.status(400).json({ error: 'המשחק כבר לא בשלב שיחה' });
+    }
+    
+    // Save user message to history
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(gameId, 'user', message);
+    
+    // Get full conversation history
+    const history = db.prepare('SELECT role, message FROM game_history WHERE game_id = ? ORDER BY created_at ASC')
+      .all(gameId);
+    
+    // Build messages array for AI
+    const messages = history.map(h => ({
+      role: h.role === 'assistant' ? 'assistant' : 'user',
+      content: h.message
+    }));
+    
+    // Respond immediately, process AI in background
+    res.json({ status: 'thinking' });
+    
+    // Send to AI in background
+    chatWithAI(messages).then(aiResponse => {
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(gameId, 'assistant', aiResponse);
+    }).catch(err => {
+      console.error('Chat AI error:', err.message);
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(gameId, 'assistant', '😅 סליחה, לא הצלחתי לענות. נסה שוב!');
+    });
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({ error: 'שגיאה בשיחה עם ה-AI' });
+  }
+});
+
+// Build game after conversation
+app.post('/api/chat/:id/build', async (req, res) => {
+  try {
+    const gameId = req.params.id;
+    
+    const game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+    if (!game) {
+      return res.status(404).json({ error: 'משחק לא נמצא' });
+    }
+    if (game.status !== 'chatting') {
+      return res.status(400).json({ error: 'המשחק כבר לא בשלב שיחה' });
+    }
+    
+    // Get conversation history to build a refined prompt
+    const history = db.prepare('SELECT role, message FROM game_history WHERE game_id = ? ORDER BY created_at ASC')
+      .all(gameId);
+    
+    // Build refined prompt from conversation
+    let refinedPrompt = game.prompt; // Start with original prompt
+    const userMessages = history.filter(h => h.role === 'user').map(h => h.message);
+    const aiMessages = history.filter(h => h.role === 'assistant').map(h => h.message);
+    
+    if (userMessages.length > 1 || aiMessages.length > 0) {
+      // Include conversation context in the prompt
+      refinedPrompt = `הרעיון המקורי: ${game.prompt}\n\n`;
+      refinedPrompt += `שיחה עם הילד לפני הבנייה:\n`;
+      history.forEach(h => {
+        const speaker = h.role === 'user' ? 'ילד' : 'עוזר';
+        refinedPrompt += `${speaker}: ${h.message}\n\n`;
+      });
+      refinedPrompt += `בנה את המשחק לפי השיחה הזו, כולל כל השיפורים שדוברו.`;
+    }
+    
+    // Update status to pending
+    db.prepare('UPDATE games SET status = ?, prompt = ? WHERE id = ?')
+      .run('pending', refinedPrompt, gameId);
+    
+    // Add build message to history
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(gameId, 'user', '🚀 יאללה, תבנה!');
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(gameId, 'assistant', '⏳ מתחיל לבנות את המשחק...');
+    
+    // Trigger build
+    notifyOpenClaw(gameId, refinedPrompt);
+    
+    res.json({ status: 'pending', message: 'מתחילים לבנות! 🚀' });
+  } catch (error) {
+    console.error('Build error:', error);
+    res.status(500).json({ error: 'שגיאה בהתחלת הבנייה' });
+  }
 });
 
 // Get pending requests (for Claude to process)
@@ -465,6 +641,17 @@ app.get('/api/games/:userId', (req, res) => {
   const games = db.prepare('SELECT id, name, status, created_at, completed_at FROM games WHERE user_id = ? ORDER BY created_at DESC LIMIT 20')
     .all(req.params.userId);
   res.json(games);
+});
+
+// Get chat history for a game (used by chat UI)
+app.get('/api/chat/:id', (req, res) => {
+  const game = db.prepare('SELECT id, status, prompt FROM games WHERE id = ?').get(req.params.id);
+  if (!game) {
+    return res.status(404).json({ error: 'משחק לא נמצא' });
+  }
+  const history = db.prepare('SELECT role, message, created_at FROM game_history WHERE game_id = ? ORDER BY created_at ASC')
+    .all(req.params.id);
+  res.json({ status: game.status, history });
 });
 
 // Get user's games with code (for sync)

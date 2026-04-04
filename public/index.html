@@ -372,6 +372,150 @@
             cursor: pointer;
         }
         
+        /* Chat UI Styles */
+        .chat-container {
+            display: none;
+            flex-direction: column;
+            max-width: 600px;
+            margin: 2rem auto;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .chat-container.active { display: flex; }
+        .chat-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .chat-header h3 { margin: 0; font-size: 1.2rem; }
+        .chat-header-back {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+        .chat-messages {
+            flex: 1;
+            min-height: 300px;
+            max-height: 450px;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            background: #f8f9fa;
+        }
+        .chat-bubble {
+            max-width: 85%;
+            padding: 0.8rem 1rem;
+            border-radius: 16px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            word-wrap: break-word;
+            white-space: pre-wrap;
+        }
+        .chat-bubble.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-bottom-left: 16px;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-bubble.assistant {
+            align-self: flex-start;
+            background: white;
+            color: #333;
+            border: 2px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+        }
+        .chat-bubble.assistant strong,
+        .chat-bubble.assistant b { color: #764ba2; }
+        .typing-dots span { animation: blink 1.4s infinite; font-weight: bold; font-size: 1.2em; }
+        .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes blink { 0%,80%,100% { opacity: 0; } 40% { opacity: 1; } }
+        .chat-typing {
+            align-self: flex-start;
+            background: white;
+            border: 2px solid #e0e0e0;
+            padding: 0.8rem 1.2rem;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            display: none;
+        }
+        .chat-typing.show { display: block; }
+        .chat-typing-dots {
+            display: flex;
+            gap: 4px;
+        }
+        .chat-typing-dots span {
+            width: 8px;
+            height: 8px;
+            background: #764ba2;
+            border-radius: 50%;
+            animation: typingBounce 1.4s infinite ease-in-out;
+        }
+        .chat-typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .chat-typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typingBounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+        .chat-input-area {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem;
+            border-top: 2px solid #e0e0e0;
+            background: white;
+        }
+        .chat-input {
+            flex: 1;
+            padding: 0.8rem 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: none;
+        }
+        .chat-input:focus { outline: none; border-color: #667eea; }
+        .chat-btn-send {
+            padding: 0.8rem 1.2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .chat-btn-send:disabled { opacity: 0.5; cursor: not-allowed; }
+        .chat-btn-build {
+            padding: 0.8rem 1.2rem;
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            white-space: nowrap;
+            transition: transform 0.2s;
+        }
+        .chat-btn-build:hover { transform: translateY(-2px); }
+        .chat-btn-build:disabled { opacity: 0.5; cursor: not-allowed; }
+
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -662,6 +806,28 @@
             </div>
         </div>
 
+        <!-- Chat Screen (conversation before building) -->
+        <div class="screen" id="chatScreen">
+            <div class="chat-container active" id="chatContainer">
+                <div class="chat-header">
+                    <button class="chat-header-back" onclick="exitChat()">→ חזרה</button>
+                    <h3>💬 בואו נדבר על המשחק!</h3>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                </div>
+                <div class="chat-typing" id="chatTyping">
+                    <div class="chat-typing-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" class="chat-input" id="chatInput" placeholder="כתוב תשובה..." onkeypress="if(event.key==='Enter')sendChatMessage()">
+                    <button class="chat-btn-send" id="chatSendBtn" onclick="sendChatMessage()">שלח</button>
+                    <button class="chat-btn-build" id="chatBuildBtn" onclick="buildFromChat()">יאללה, תבנה! 🚀</button>
+                </div>
+            </div>
+        </div>
+
         <div class="screen editor-screen" id="editorScreen">
             <div class="panel">
                 <button class="back-btn" onclick="showGamesScreen()">→ חזרה למשחקים שלי</button>
@@ -875,19 +1041,23 @@
                     return;
                 }
 
-                grid.innerHTML = games.map(g => `
+                grid.innerHTML = games.map(g => {
+                    const statusIcon = g.status==='chatting'?'💬':g.status==='pending'?'<div style="animation:bounce 1s infinite">🔨</div>':g.status==='failed'?'❌':'🎮';
+                    const statusText = g.status==='chatting'?'בשיחה...':g.status==='pending'?'בבנייה...':g.status==='completed'?'מוכן!':'נכשל';
+                    const statusClass = g.status==='chatting'?'status-pending':('status-'+g.status);
+                    return `
                     <div class="game-card">
                         <button class="delete-btn" onclick="event.stopPropagation();deleteGame('${g.id}','${esc(g.name)}')" title="מחק">🗑️</button>
                         <div onclick="openGame('${g.id}','${esc(g.name)}','${g.status}')">
-                            <div class="game-card-preview ${g.status}">${g.status==='pending'?'<div style="animation:bounce 1s infinite">🔨</div>':g.status==='failed'?'❌':'🎮'}</div>
+                            <div class="game-card-preview ${g.status}">${statusIcon}</div>
                             <div class="game-card-info">
                                 <div class="game-card-name">${g.name}</div>
                                 <div class="game-card-date">${new Date(g.created_at+' UTC').toLocaleDateString('he-IL')}</div>
-                                <span class="game-card-status status-${g.status}">${g.status==='pending'?'בבנייה...':g.status==='completed'?'מוכן!':'נכשל'}</span>
+                                <span class="game-card-status ${statusClass}">${statusText}</span>
                             </div>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
             } catch (e) { console.error(e); }
         }
 
@@ -932,6 +1102,16 @@
             const p = document.getElementById('newGamePrompt').value.trim();
             if (!p) { showToast('תאר את המשחק'); return; }
 
+            const btn = document.getElementById('createBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ שולח...';
+
+            // Immediately show chat screen with thinking indicator
+            closeCreateModal();
+            currentGameCode = null;
+            currentGameName = p.slice(0, 25) + (p.length > 25 ? '...' : '');
+            openChatScreen(p, null); // null = show thinking
+
             try {
                 const r = await fetch('/api/request', {
                     method: 'POST',
@@ -939,20 +1119,225 @@
                     body: JSON.stringify({ userId: currentUser.id, prompt: p, images: [] })
                 });
                 const d = await r.json();
-                closeCreateModal();
-                showToast('המשחק בבנייה! ⏳');
                 currentGameId = d.id;
-                currentGameCode = null; // Reset - this is a new game
-                currentGameName = p.slice(0, 25) + (p.length > 25 ? '...' : '');
-                openGameEditor();
-                showWaitingState(); // Show building animation instead of old game
-                startPolling(d.id);
-            } catch (e) { showToast('שגיאה'); }
+
+                // Remove thinking indicator and show real response
+                removeThinking();
+                if (d.status === 'chatting') {
+                    if (d.message) {
+                        removeThinking();
+                        addChatBubble('assistant', d.message);
+                    } else {
+                        // Response will come async - poll for it
+                        pollChatResponse(d.id);
+                    }
+                } else {
+                    removeThinking();
+                    addChatBubble('assistant', '🚀 בונה את המשחק! זה ייקח דקה-שתיים...');
+                    showScreen('editorScreen');
+                    openGameEditor();
+                    showWaitingState();
+                    startPolling(d.id);
+                }
+            } catch (e) {
+                removeThinking();
+                addChatBubble('assistant', '😅 אופס, משהו השתבש. נסה שוב!');
+            }
+            finally {
+                btn.disabled = false;
+                btn.textContent = '🚀 צור את המשחק!';
+            }
+        }
+
+        function openChatScreen(userPrompt, aiMessage) {
+            showScreen('chatScreen');
+            const msgs = document.getElementById('chatMessages');
+            msgs.innerHTML = '';
+            addChatBubble('user', userPrompt);
+            if (aiMessage) {
+                addChatBubble('assistant', aiMessage);
+            } else {
+                // Show thinking indicator
+                const thinking = document.createElement('div');
+                thinking.className = 'chat-bubble assistant';
+                thinking.id = 'thinkingBubble';
+                thinking.innerHTML = '<div style="display:flex;gap:4px;align-items:center"><span>🤔 חושב על הרעיון שלך</span><span class="typing-dots"><span>.</span><span>.</span><span>.</span></span></div>';
+                msgs.appendChild(thinking);
+                msgs.scrollTop = msgs.scrollHeight;
+            }
+            document.getElementById('chatInput').value = '';
+            document.getElementById('chatInput').focus();
+        }
+
+        function removeThinking() {
+            const t = document.getElementById('thinkingBubble');
+            if (t) t.remove();
+        }
+
+        async function pollChatResponse(gameId) {
+            let attempts = 0;
+            const poll = setInterval(async () => {
+                attempts++;
+                try {
+                    const r = await fetch(`/api/history/${gameId}`);
+                    const history = await r.json();
+                    const assistantMsgs = history.filter(m => m.role === 'assistant');
+                    if (assistantMsgs.length > 0) {
+                        clearInterval(poll);
+                        removeThinking();
+                        addChatBubble('assistant', assistantMsgs[assistantMsgs.length - 1].message);
+                    }
+                    // Also check if game started building (fallback)
+                    const sr = await fetch(`/api/status/${gameId}`);
+                    const status = await sr.json();
+                    if (status.status === 'pending' || status.status === 'completed') {
+                        clearInterval(poll);
+                        removeThinking();
+                        // Switch to build screen immediately
+                        showScreen('editorScreen');
+                        openGameEditor();
+                        if (status.status === 'completed') {
+                            currentGameCode = status.code;
+                            renderGame(status.code);
+                        } else {
+                            showWaitingState();
+                            startPolling(gameId);
+                        }
+                    }
+                } catch (e) {}
+                if (attempts > 30) { clearInterval(poll); removeThinking(); addChatBubble('assistant', '😅 קצת איטי... נסה שוב!'); }
+            }, 2000);
+        }
+
+        function addChatBubble(role, text) {
+            const msgs = document.getElementById('chatMessages');
+            const bubble = document.createElement('div');
+            bubble.className = 'chat-bubble ' + role;
+            // Simple markdown-like rendering
+            bubble.innerHTML = formatChatMessage(text);
+            msgs.appendChild(bubble);
+            msgs.scrollTop = msgs.scrollHeight;
+        }
+
+        function formatChatMessage(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/^(\d+)\.\s/gm, '<br>$1. ')
+                .replace(/^[-•]\s/gm, '<br>• ')
+                .replace(/\n/g, '<br>');
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            input.value = '';
+            addChatBubble('user', message);
+
+
+
+            // Show typing indicator
+            document.getElementById('chatTyping').classList.add('show');
+            document.getElementById('chatSendBtn').disabled = true;
+            document.getElementById('chatBuildBtn').disabled = true;
+
+            try {
+                // Get current message count before sending
+                const histBefore = await fetch(`/api/history/${currentGameId}`).then(r => r.json());
+                const countBefore = histBefore.filter(m => m.role === 'assistant').length;
+                
+                await fetch(`/api/chat/${currentGameId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message })
+                });
+                
+                // Poll for new assistant message
+                let attempts = 0;
+                const poll = setInterval(async () => {
+                    attempts++;
+                    try {
+                        const hist = await fetch(`/api/history/${currentGameId}`).then(r => r.json());
+                        const assistantMsgs = hist.filter(m => m.role === 'assistant');
+                        if (assistantMsgs.length > countBefore) {
+                            clearInterval(poll);
+                            document.getElementById('chatTyping').classList.remove('show');
+                            document.getElementById('chatSendBtn').disabled = false;
+                            document.getElementById('chatBuildBtn').disabled = false;
+                            addChatBubble('assistant', assistantMsgs[assistantMsgs.length - 1].message);
+                            return;
+                        }
+                    } catch {}
+                    if (attempts > 30) {
+                        clearInterval(poll);
+                        document.getElementById('chatTyping').classList.remove('show');
+                        document.getElementById('chatSendBtn').disabled = false;
+                        document.getElementById('chatBuildBtn').disabled = false;
+                        addChatBubble('assistant', '😅 איטי קצת... נסה שוב');
+                    }
+                }, 2000);
+                return; // Don't re-enable buttons here, poll handles it
+            } catch (e) {
+                document.getElementById('chatTyping').classList.remove('show');
+                addChatBubble('assistant', '😕 שגיאה, נסה שוב');
+            }
+            document.getElementById('chatSendBtn').disabled = false;
+            document.getElementById('chatBuildBtn').disabled = false;
+            input.focus();
+        }
+
+        async function buildFromChat() {
+            document.getElementById('chatBuildBtn').disabled = true;
+            document.getElementById('chatBuildBtn').textContent = '⏳ מתחיל לבנות...';
+            document.getElementById('chatSendBtn').disabled = true;
+
+            try {
+                await fetch(`/api/chat/${currentGameId}/build`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            } catch (e) {
+                // Even if request fails, switch to build screen
+            }
+            
+            // Immediately switch to build/editor screen
+            showScreen('editorScreen');
+            openGameEditor();
+            showWaitingState();
+            startPolling(currentGameId);
+        }
+
+        function exitChat() {
+            if (pollingInterval) { clearInterval(pollingInterval); pollingInterval = null; }
+            showGamesScreen();
         }
 
         async function openGame(id, name, status) {
             currentGameId = id;
             currentGameName = name;
+            if (status === 'chatting') {
+                // Resume chat
+                try {
+                    const r = await fetch(`/api/chat/${id}`);
+                    const d = await r.json();
+                    showScreen('chatScreen');
+                    const msgs = document.getElementById('chatMessages');
+                    msgs.innerHTML = '';
+                    d.history.forEach(h => {
+                        const role = h.role === 'assistant' ? 'assistant' : 'user';
+                        addChatBubble(role, h.message);
+                    });
+                    document.getElementById('chatInput').value = '';
+                } catch (e) {
+                    showToast('שגיאה בטעינת השיחה');
+                }
+                return;
+            }
             openGameEditor();
             if (status === 'pending') { showWaitingState(); startPolling(id); }
             else await loadGameCode(id);
