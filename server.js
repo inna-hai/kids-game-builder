@@ -82,7 +82,7 @@ ${prompt}
 החזר קוד HTML מלא בלבד.`;
 
   const postData = JSON.stringify({
-    model: 'anthropic/claude-sonnet-4-20250514',
+    model: 'openclaw/kids-games',
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userMessage }
@@ -149,7 +149,7 @@ async function chatWithAI(messages) {
         'Authorization': `Bearer ${OPENCLAW_API_TOKEN}`
       },
       body: JSON.stringify({
-        model: 'anthropic/claude-sonnet-4-20250514',
+        model: 'openclaw/kids-games',
         messages: [
           { role: 'system', content: CHAT_SYSTEM_PROMPT },
           ...messages
@@ -173,17 +173,47 @@ async function chatWithAI(messages) {
 // Start conversation with AI about the game idea
 async function startConversation(gameId, prompt) {
   const messages = [{ role: 'user', content: prompt }];
-  
-  const aiResponse = await chatWithAI(messages);
-  
-  // Save AI response to history
-  db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-    .run(gameId, 'assistant', aiResponse);
-  
-  return aiResponse;
+
+  return new Promise((resolve, reject) => {
+    enqueueChat(
+      gameId,
+      messages,
+      (aiResponse) => {
+        db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+          .run(gameId, 'assistant', aiResponse);
+        resolve(aiResponse);
+      },
+      reject
+    );
+  });
 }
 
-// Build queue - up to 3 concurrent builds
+// Chat queue - every child gets a chat turn, even if waiting in line
+const MAX_CONCURRENT_CHATS = 2;
+let activeChats = 0;
+let chatQueue = [];
+
+function enqueueChat(gameId, messages, onSuccess, onError) {
+  chatQueue.push({ gameId, messages, onSuccess, onError });
+  processChatQueue();
+}
+
+async function processChatQueue() {
+  while (activeChats < MAX_CONCURRENT_CHATS && chatQueue.length > 0) {
+    activeChats++;
+    const { gameId, messages, onSuccess, onError } = chatQueue.shift();
+    console.log(`💬 Chat queued for ${gameId}... (active: ${activeChats}, queued: ${chatQueue.length})`);
+    chatWithAI(messages)
+      .then(onSuccess)
+      .catch(onError)
+      .finally(() => {
+        activeChats--;
+        processChatQueue();
+      });
+  }
+}
+
+// Build queue
 const MAX_CONCURRENT_BUILDS = 5;
 let activeBuilds = 0;
 let buildQueue = [];
@@ -392,14 +422,11 @@ app.post('/api/request', async (req, res) => {
     // Respond immediately, start conversation in background
     res.json({ id, status: 'chatting', message: null });
     
-    // Start conversation in background
+    // Start conversation in background. Keep the child in chat mode even if queue is long.
     startConversation(id, fullPrompt).catch(e => {
       console.error('Conversation start failed:', e.message);
-      // Fallback: build directly if chat fails
-      db.prepare('UPDATE games SET status = ? WHERE id = ?').run('pending', id);
       db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-        .run(id, 'assistant', '🚀 בונה את המשחק! זה ייקח דקה-שתיים...');
-      notifyOpenClaw(id, fullPrompt);
+        .run(id, 'assistant', '😅 הייתה תקלה זמנית בצ׳אט. אפשר לנסות שוב עוד רגע, או ללחוץ על הכפתור לבנייה.');
     });
   } catch (error) {
     console.error('Error submitting request:', error);
@@ -448,18 +475,22 @@ app.post('/api/chat/:id', async (req, res) => {
       content: h.message
     }));
     
-    // Respond immediately, process AI in background
+    // Respond immediately, process AI in background through the chat queue
     res.json({ status: 'thinking' });
     
-    // Send to AI in background
-    chatWithAI(messages).then(aiResponse => {
-      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-        .run(gameId, 'assistant', aiResponse);
-    }).catch(err => {
-      console.error('Chat AI error:', err.message);
-      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-        .run(gameId, 'assistant', '😅 סליחה, לא הצלחתי לענות. נסה שוב!');
-    });
+    enqueueChat(
+      gameId,
+      messages,
+      (aiResponse) => {
+        db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+          .run(gameId, 'assistant', aiResponse);
+      },
+      (err) => {
+        console.error('Chat AI error:', err.message);
+        db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+          .run(gameId, 'assistant', '😅 סליחה, לא הצלחתי לענות. נסה שוב!');
+      }
+    );
   } catch (error) {
     console.error('Chat error:', error);
     res.status(500).json({ error: 'שגיאה בשיחה עם ה-AI' });
@@ -807,6 +838,13 @@ app.post('/api/upload', (req, res) => {
     console.error('Error uploading image:', error);
     res.status(500).json({ error: 'שגיאה בהעלאת התמונה' });
   }
+});
+
+app.get('/api/admin/queue-status', (req, res) => {
+  res.json({
+    chat: { active: activeChats, queued: chatQueue.length, maxConcurrent: MAX_CONCURRENT_CHATS },
+    build: { active: activeBuilds, queued: buildQueue.length, maxConcurrent: MAX_CONCURRENT_BUILDS }
+  });
 });
 
 const PORT = process.env.PORT || 3002;

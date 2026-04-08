@@ -813,6 +813,9 @@
                     <button class="chat-header-back" onclick="exitChat()">→ חזרה</button>
                     <h3>💬 בואו נדבר על המשחק!</h3>
                 </div>
+                <div id="chatQueueNotice" style="display:none;background:#fff3cd;color:#856404;padding:0.75rem 1rem;font-size:0.9rem;text-align:center;border-bottom:1px solid #f1d98c;">
+                    ⏳ יש עומס קטן, אבל שמרנו לך מקום בתור לצ׳אט.
+                </div>
                 <div class="chat-messages" id="chatMessages">
                 </div>
                 <div class="chat-typing" id="chatTyping">
@@ -1152,6 +1155,7 @@
         function openChatScreen(userPrompt, aiMessage) {
             showScreen('chatScreen');
             const msgs = document.getElementById('chatMessages');
+            document.getElementById('chatQueueNotice').style.display = 'none';
             msgs.innerHTML = '';
             addChatBubble('user', userPrompt);
             if (aiMessage) {
@@ -1205,7 +1209,10 @@
                         }
                     }
                 } catch (e) {}
-                if (attempts > 30) { clearInterval(poll); removeThinking(); addChatBubble('assistant', '😅 קצת איטי... נסה שוב!'); }
+                if (attempts >= 8) {
+                    document.getElementById('chatQueueNotice').style.display = 'block';
+                }
+                if (attempts > 90) { clearInterval(poll); removeThinking(); addChatBubble('assistant', '⏳ יש עומס קטן בתור, אבל לא דילגנו עליך. חכה עוד קצת או רענן בעוד רגע.'); }
             }, 2000);
         }
 
@@ -1269,16 +1276,20 @@
                             document.getElementById('chatTyping').classList.remove('show');
                             document.getElementById('chatSendBtn').disabled = false;
                             document.getElementById('chatBuildBtn').disabled = false;
+                            document.getElementById('chatQueueNotice').style.display = 'none';
                             addChatBubble('assistant', assistantMsgs[assistantMsgs.length - 1].message);
                             return;
                         }
                     } catch {}
-                    if (attempts > 30) {
+                    if (attempts >= 8) {
+                        document.getElementById('chatQueueNotice').style.display = 'block';
+                    }
+                    if (attempts > 90) {
                         clearInterval(poll);
                         document.getElementById('chatTyping').classList.remove('show');
                         document.getElementById('chatSendBtn').disabled = false;
                         document.getElementById('chatBuildBtn').disabled = false;
-                        addChatBubble('assistant', '😅 איטי קצת... נסה שוב');
+                        addChatBubble('assistant', '⏳ יש עומס קטן בתור, אבל התשובה שלך עדיין ממתינה. נסה שוב בעוד רגע.');
                     }
                 }, 2000);
                 return; // Don't re-enable buttons here, poll handles it
