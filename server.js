@@ -51,8 +51,15 @@ const DAILY_GAME_LIMIT = 20;
 async function createGameViaAPI(gameId, prompt, existingCode = null) {
   const isImprovement = !!existingCode;
   
+  const safetyRules = `
+כללי בטיחות חובה לילדים:
+- אין ליצור תוכן מיני, אלים גרפי, משפיל, מפלה, גזעני, מאיים, פגיעה עצמית, נשק, סמים, הימורים או איסוף פרטים אישיים.
+- אם הבקשה גבולית, המר אותה לגרסה בטוחה וחינוכית: הצלה, חידות, רובוטים, ספורט, מדע, מפלצות מצוירות ללא פגיעה.
+- אין קישורים חיצוניים, אין צ'אט חופשי בתוך המשחק, אין בקשה לטלפון/כתובת/מייל.
+- הטקסטים במשחק חייבים להתאים לילדי יסודי/חטיבה.`;
+
   const systemPrompt = isImprovement 
-    ? `אתה מפתח משחקים לילדים. שפר את המשחק הקיים לפי הבקשה. שמור על המבנה הקיים והוסף/שנה רק מה שביקשו. החזר HTML מלא בלבד, בלי הסברים.`
+    ? `אתה מפתח משחקים לילדים. שפר את המשחק הקיים לפי הבקשה. שמור על המבנה הקיים והוסף/שנה רק מה שביקשו. ${safetyRules}\nהחזר HTML מלא בלבד, בלי הסברים.`
     : `אתה מפתח משחקים לילדים בגילאי 9-11. צור גרסה ראשונה פשוטה ומהירה של המשחק.
 
 חוקים:
@@ -62,6 +69,7 @@ async function createGameViaAPI(gameId, prompt, existingCode = null) {
 - עיצוב נקי עם צבעים (לא צריך להיות מורכב)
 - ניקוד בסיסי
 - המשחק חייב לעבוד מיד
+- ${safetyRules}
 
 אל תבנה משחק מושלם — בנה גרסה ראשונה שהילד יוכל לשחק ואז לשפר!
 החזר רק HTML, בלי הסברים, בלי markdown.`;
@@ -135,7 +143,9 @@ ${prompt}
 }
 
 // Chat with AI helper (for conversation flow, not code generation)
-const CHAT_SYSTEM_PROMPT = `אתה עוזר יצירתי לילדים שרוצים ליצור משחקים. התפקיד שלך: תן פידבק קצר על הרעיון, הצע 2 שיפורים, שאל שאלה אחת, ותן דוגמת פרומפט משופר. דבר בעברית, קצר ומהנה! בסוף ההודעה כתוב: "כשמוכנים — לוחצים על הכפתור **יאללה, תבנה! 🚀** למטה"`;
+const CHAT_SYSTEM_PROMPT = `אתה עוזר יצירתי לילדים שרוצים ליצור משחקים. התפקיד שלך: תן פידבק קצר על הרעיון, הצע 2 שיפורים, שאל שאלה אחת, ותן דוגמת פרומפט משופר. דבר בעברית, קצר ומהנה!
+כללי בטיחות: אין לעודד אלימות, מיניות, שנאה, השפלות, פגיעה עצמית, נשק, סמים, הימורים או איסוף פרטים אישיים. אם רעיון גבולי — הפוך אותו בעדינות לגרסה בטוחה כמו חידה, הצלה, רובוטים, ספורט, מדע או מפלצות מצוירות ללא פגיעה.
+בסוף ההודעה כתוב: "כשמוכנים — לוחצים על הכפתור **יאללה, תבנה! 🚀** למטה"`;
 
 async function chatWithAI(messages) {
   const controller = new AbortController();
@@ -244,6 +254,19 @@ async function processQueue() {
 // Helper to save game code
 function saveGameCode(gameId, code) {
   try {
+    const outputSafety = moderateGeneratedOutput(code);
+    if (!outputSafety.allowed) {
+      saveSafetyEvent({ gameId, text: extractVisibleTextFromHtml(code), context: 'generated_output', result: outputSafety });
+      db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
+        .run(code, outputSafety.severity === 'hard' ? 'blocked' : 'pending_review', gameId);
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(gameId, 'assistant', outputSafety.severity === 'hard'
+          ? '🛡️ עצרתי את המשחק כי נמצא בו תוכן שלא מתאים לכיתה. אפשר להתחיל רעיון חדש ובטוח יותר.'
+          : '🛡️ המשחק עבר לבדיקה של המורה לפני פרסום, כי נמצא בו תוכן גבולי.');
+      console.log(`🛡️ Game ${gameId} held by content safety (${outputSafety.decision})`);
+      return;
+    }
+
     const stmt = db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?');
     stmt.run(code, 'completed', gameId);
     console.log(`💾 Game ${gameId} saved to database`);
@@ -358,7 +381,163 @@ db.exec(`
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (game_id) REFERENCES games(id)
   );
+
+  CREATE TABLE IF NOT EXISTS content_safety_events (
+    id TEXT PRIMARY KEY,
+    game_id TEXT,
+    user_id TEXT,
+    student_name TEXT,
+    class_id TEXT,
+    teacher_id TEXT,
+    input_text TEXT,
+    context TEXT,
+    decision TEXT NOT NULL,
+    severity TEXT NOT NULL,
+    categories TEXT,
+    teacher_note TEXT,
+    student_message TEXT,
+    source TEXT DEFAULT 'local',
+    resolved_at DATETIME,
+    teacher_action TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (game_id) REFERENCES games(id),
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
 `);
+
+const CONTENT_SAFETY_RULES = [
+  { category: 'sexual', severity: 'hard', patterns: [/מין|סקס|אונס|עירום|פורנו|זנות|חרמן|חרמני|sex|porn|nude|rape/i] },
+  { category: 'self_harm', severity: 'hard', patterns: [/התאבד|להתאבד|אובדנ|לחתוך ורידים|פגיעה עצמית|suicide|self.?harm|kill myself/i] },
+  { category: 'hate', severity: 'hard', patterns: [/נאצי|להרוג יהודים|להרוג ערבים|גזען|כושי|nazi|racist|kill jews|kill arabs/i] },
+  { category: 'hard_violence', severity: 'hard', patterns: [/להרוג|רצח|לרצוח|דם|דקירה|לדקור|לירות ב|ירי בבית ספר|פצצה|טרור|טבח|murder|kill\s+(the|a|my)?\s*(teacher|student|kid|person)|stab|blood|terror|massacre|school shooting/i] },
+  { category: 'weapons_drugs', severity: 'hard', patterns: [/סמים|קוקאין|חשיש|מריחואנה|אקדח אמיתי|רובה אמיתי|סכין אמיתי|drug|cocaine|weed|real gun|real knife/i] },
+  { category: 'bullying', severity: 'hard', patterns: [/להשפיל|חרם|בריונות|לקלל את|לצחוק על ילד|bully|humiliate/i] },
+  { category: 'personal_info', severity: 'hard', patterns: [/(?:\+972|0)(?:[-\s]?\d){8,9}/, /[\w.+-]+@[\w-]+\.[\w.-]+/, /(?:כתובת|גר ב|גרה ב|רחוב|תעודת זהות|ת\.ז\.|מספר טלפון|phone|address|email)/i] },
+  { category: 'soft_violence', severity: 'soft', patterns: [/מלחמה|קרב|יריות|יורה|זומבי|מפלצת|פיצוץ|אויבים|battle|war|shoot|zombie|monster|enemy|explosion/i] },
+  { category: 'scary', severity: 'soft', patterns: [/אימה|מפחיד מאוד|סיוט|דם מזויף|horror|nightmare/i] },
+];
+
+const SAFE_ALTERNATIVES = [
+  'משחק הצלה שבו אוספים כוכבים ועוזרים לדמויות להגיע הביתה',
+  'אתגר רובוטים בזירה צבעונית בלי אלימות',
+  'משחק חידות/מבוך עם ניקוד וטיימר',
+  'הרפתקת מדע שבה פותרים משימות כדי להתקדם שלב'
+];
+
+function normalizeCategories(categories) {
+  return [...new Set(categories)].sort();
+}
+
+function moderateContent(text, context = 'unknown') {
+  const value = String(text || '').trim();
+  if (!value) return { allowed: true, decision: 'allowed', severity: 'none', categories: [], source: 'local' };
+
+  const matches = [];
+  let highest = 'none';
+  for (const rule of CONTENT_SAFETY_RULES) {
+    if (rule.patterns.some(pattern => pattern.test(value))) {
+      matches.push(rule.category);
+      if (rule.severity === 'hard') highest = 'hard';
+      else if (highest !== 'hard') highest = 'soft';
+    }
+  }
+
+  const categories = normalizeCategories(matches);
+  if (highest === 'hard') {
+    return {
+      allowed: false,
+      decision: 'hard_block',
+      severity: 'hard',
+      categories,
+      source: 'local',
+      teacher_note: `נחסמה בקשת תלמיד/ה בהקשר ${context}: ${categories.join(', ') || 'תוכן לא מתאים'}`,
+      student_message: 'אני לא יכול לבנות או להמשיך עם תוכן כזה. אפשר לבחור רעיון שמתאים לכיתה — הרפתקה, חידה, בנייה, ספורט, מדע או רובוטים 🙂'
+    };
+  }
+
+  if (highest === 'soft') {
+    return {
+      allowed: false,
+      decision: 'soft_block',
+      severity: 'soft',
+      categories,
+      source: 'local',
+      teacher_note: `בקשה גבולית הומרה/נעצרה בהקשר ${context}: ${categories.join(', ')}`,
+      student_message: `הרעיון הזה קצת פחות מתאים לסביבת ילדים. בוא נהפוך אותו לגרסה בטוחה יותר — למשל: ${SAFE_ALTERNATIVES.slice(0, 3).join(' / ')}.`
+    };
+  }
+
+  return { allowed: true, decision: 'allowed', severity: 'none', categories: [], source: 'local' };
+}
+
+function getSafetyActor({ userId, gameId }) {
+  let game = null;
+  let user = null;
+  if (gameId) game = db.prepare('SELECT * FROM games WHERE id = ?').get(gameId);
+  const effectiveUserId = userId || game?.user_id;
+  if (effectiveUserId) user = db.prepare('SELECT * FROM users WHERE id = ?').get(effectiveUserId);
+  const classRow = user?.class_id ? db.prepare('SELECT * FROM classes WHERE id = ?').get(user.class_id) : null;
+  return { game, user, classRow };
+}
+
+function saveSafetyEvent({ gameId = null, userId = null, text, context, result }) {
+  const { user, classRow } = getSafetyActor({ userId, gameId });
+  db.prepare(`
+    INSERT INTO content_safety_events
+      (id, game_id, user_id, student_name, class_id, teacher_id, input_text, context, decision, severity, categories, teacher_note, student_message, source)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    uuidv4(),
+    gameId,
+    user?.id || userId || null,
+    user?.name || null,
+    user?.class_id || null,
+    classRow?.teacher_id || null,
+    String(text || '').slice(0, 4000),
+    context,
+    result.decision,
+    result.severity,
+    JSON.stringify(result.categories || []),
+    result.teacher_note || '',
+    result.student_message || '',
+    result.source || 'local'
+  );
+}
+
+function moderationError(res, result, status = 422) {
+  return res.status(status).json({
+    error: result.student_message,
+    safety: {
+      decision: result.decision,
+      severity: result.severity,
+      categories: result.categories,
+      message: result.student_message
+    }
+  });
+}
+
+function requireSafeInput({ text, context, userId = null, gameId = null }) {
+  const result = moderateContent(text, context);
+  if (!result.allowed) saveSafetyEvent({ gameId, userId, text, context, result });
+  return result;
+}
+
+function extractVisibleTextFromHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&quot;|&#34;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function moderateGeneratedOutput(html) {
+  return moderateContent(extractVisibleTextFromHtml(html), 'generated_output');
+}
 
 function generateClassCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -475,6 +654,32 @@ app.get('/api/classes/:classId/report', (req, res) => {
   res.json({ class: classRow, students, games });
 });
 
+app.get('/api/classes/:classId/safety-events', (req, res) => {
+  const classRow = db.prepare('SELECT * FROM classes WHERE id = ?').get(req.params.classId);
+  if (!classRow) return res.status(404).json({ error: 'כיתה לא נמצאה' });
+  const events = db.prepare(`
+    SELECT e.*, g.name as game_name
+    FROM content_safety_events e
+    LEFT JOIN games g ON g.id = e.game_id
+    WHERE e.class_id = ?
+    ORDER BY e.created_at DESC
+    LIMIT 100
+  `).all(req.params.classId).map(e => ({
+    ...e,
+    categories: e.categories ? JSON.parse(e.categories) : []
+  }));
+  res.json({ class: classRow, events });
+});
+
+app.post('/api/safety-events/:eventId/resolve', (req, res) => {
+  const { action } = req.body || {};
+  const event = db.prepare('SELECT * FROM content_safety_events WHERE id = ?').get(req.params.eventId);
+  if (!event) return res.status(404).json({ error: 'אירוע לא נמצא' });
+  db.prepare('UPDATE content_safety_events SET resolved_at = CURRENT_TIMESTAMP, teacher_action = ? WHERE id = ?')
+    .run(action || 'טופל על ידי המורה', req.params.eventId);
+  res.json({ success: true });
+});
+
 // Submit game request (goes to queue for Claude to process)
 app.post('/api/request', async (req, res) => {
   try {
@@ -483,6 +688,9 @@ app.post('/api/request', async (req, res) => {
     if (!userId || !prompt) {
       return res.status(400).json({ error: 'נדרש userId ו-prompt' });
     }
+
+    const safety = requireSafeInput({ text: prompt, context: parentGameId ? 'request_improvement' : 'new_game_prompt', userId, gameId: parentGameId || null });
+    if (!safety.allowed) return moderationError(res, safety);
 
     // Check daily limit (only for new games, not improvements)
     if (!parentGameId) {
@@ -584,6 +792,13 @@ app.post('/api/chat/:id', async (req, res) => {
     if (game.status !== 'chatting') {
       return res.status(400).json({ error: 'המשחק כבר לא בשלב שיחה' });
     }
+
+    const safety = requireSafeInput({ text: message, context: 'chat_message', gameId });
+    if (!safety.allowed) {
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(gameId, 'assistant', safety.student_message);
+      return moderationError(res, safety);
+    }
     
     // Save user message to history
     db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
@@ -642,6 +857,13 @@ app.post('/api/chat/:id/build', async (req, res) => {
     let refinedPrompt = game.prompt; // Start with original prompt
     const userMessages = history.filter(h => h.role === 'user').map(h => h.message);
     const aiMessages = history.filter(h => h.role === 'assistant').map(h => h.message);
+    const combinedUserText = userMessages.join('\n');
+    const safety = requireSafeInput({ text: combinedUserText, context: 'build_from_chat', gameId });
+    if (!safety.allowed) {
+      db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+        .run(gameId, 'assistant', safety.student_message);
+      return moderationError(res, safety);
+    }
     
     if (userMessages.length > 1 || aiMessages.length > 0) {
       // Include conversation context in the prompt
@@ -687,6 +909,18 @@ app.post('/api/complete/:id', async (req, res) => {
   
   if (!game) {
     return res.status(404).json({ error: 'משחק לא נמצא' });
+  }
+
+  const outputSafety = moderateGeneratedOutput(code);
+  if (!outputSafety.allowed) {
+    saveSafetyEvent({ gameId: req.params.id, text: extractVisibleTextFromHtml(code), context: 'external_complete_output', result: outputSafety });
+    db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(code, outputSafety.severity === 'hard' ? 'blocked' : 'pending_review', req.params.id);
+    db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
+      .run(req.params.id, 'assistant', outputSafety.severity === 'hard'
+        ? '🛡️ עצרתי את המשחק כי נמצא בו תוכן שלא מתאים לכיתה. אפשר להתחיל רעיון חדש ובטוח יותר.'
+        : '🛡️ המשחק עבר לבדיקה של המורה לפני פרסום, כי נמצא בו תוכן גבולי.');
+    return res.json({ success: true, status: outputSafety.severity === 'hard' ? 'blocked' : 'pending_review' });
   }
   
   db.prepare('UPDATE games SET code = ?, status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?')
@@ -750,6 +984,9 @@ app.post('/api/improve', (req, res) => {
     if (!game) {
       return res.status(404).json({ error: 'משחק לא נמצא' });
     }
+
+    const safety = requireSafeInput({ text: prompt, context: 'improve_prompt', gameId });
+    if (!safety.allowed) return moderationError(res, safety);
     
     let fullPrompt = prompt;
     if (images && images.length > 0) {

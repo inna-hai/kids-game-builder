@@ -539,6 +539,12 @@
         .mini-game-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
         .mini-game { display: flex; justify-content: space-between; gap: 1rem; background: #f8f9fa; border-radius: 10px; padding: 0.75rem; align-items: center; }
         .mini-game a { color: #667eea; font-weight: 700; text-decoration: none; }
+        .safety-event { border-right: 5px solid #ff9800; background: #fff8e8; border-radius: 12px; padding: 0.9rem; margin-top: 0.7rem; }
+        .safety-event.hard { border-right-color: #d32f2f; background: #fff0f0; }
+        .safety-event.resolved { opacity: 0.65; }
+        .safety-badge { display:inline-block; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.75rem; font-weight:700; background:#ffe0b2; color:#8a4b00; margin-left:0.3rem; }
+        .safety-badge.hard { background:#ffcdd2; color:#9b111e; }
+        .safety-text { margin-top:0.45rem; padding:0.6rem; background:rgba(255,255,255,0.7); border-radius:8px; color:#333; white-space:pre-wrap; word-break:break-word; }
 
         .toast {
             position: fixed;
@@ -1002,6 +1008,21 @@
         let currentGameCode = '';
         let pollingInterval = null;
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showSafetyMessage(data, fallback) {
+            const msg = data?.safety?.message || data?.error || fallback || 'התוכן הזה לא מתאים לסביבת הכיתה';
+            showToast(msg);
+            return msg;
+        }
+
         function setLoginMode(mode) {
             loginMode = mode;
             document.getElementById('studentTab').classList.toggle('active', mode === 'student');
@@ -1105,12 +1126,34 @@
             const r = await fetch(`/api/classes/${classId}/report`);
             const data = await r.json();
             if (!r.ok) return showToast(data.error || 'שגיאה בטעינת כיתה');
+            let safetyData = { events: [] };
+            try {
+                const sr = await fetch(`/api/classes/${classId}/safety-events`);
+                safetyData = await sr.json();
+            } catch (e) {}
+            const safetyEventsHtml = (safetyData.events || []).map(e => `
+                <div class="safety-event ${e.severity === 'hard' ? 'hard' : ''} ${e.resolved_at ? 'resolved' : ''}">
+                    <div style="display:flex;justify-content:space-between;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+                        <div>
+                            <span class="safety-badge ${e.severity === 'hard' ? 'hard' : ''}">${e.severity === 'hard' ? 'חסימה' : 'גבולי'}</span>
+                            <strong>${escapeHtml(e.student_name || 'תלמיד/ה')}</strong>
+                            <span style="color:#777;font-size:0.85rem;"> · ${escapeHtml(e.context)} · ${new Date(e.created_at + ' UTC').toLocaleString('he-IL')}</span>
+                        </div>
+                        ${e.resolved_at ? '<span style="color:#2e7d32;font-weight:700;">טופל</span>' : `<button class="teacher-btn gray" style="padding:0.45rem 0.7rem;font-size:0.85rem;" onclick="resolveSafetyEvent('${e.id}')">סמן כטופל</button>`}
+                    </div>
+                    <div style="font-size:0.85rem;color:#666;margin-top:0.35rem;">קטגוריות: ${(e.categories || []).map(escapeHtml).join(', ') || '—'}</div>
+                    <div class="safety-text">${escapeHtml(e.input_text || '')}</div>
+                    <div style="margin-top:0.45rem;color:#555;">${escapeHtml(e.teacher_note || '')}</div>
+                </div>
+            `).join('') || '<div style="color:#777;margin-top:0.5rem;">אין אירועי תוכן חריגים בכיתה 🎉</div>';
             const box = document.getElementById('classReport');
             box.style.display = 'block';
             box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
                 <div><h2>${data.class.name}</h2><div>קוד כיתה: <span class="class-code">${data.class.code}</span></div></div>
                 <button class="teacher-btn secondary" onclick="addStudentToClass('${classId}')">➕ הוספת תלמיד/ה</button>
             </div>
+            <h3 style="margin-top:1.2rem;">🛡️ אירועי תוכן חריג</h3>
+            ${safetyEventsHtml}
             <table class="report-table"><thead><tr><th>תלמיד/ה</th><th>משחקים</th><th>הושלמו</th><th>בתהליך</th><th>פעילות אחרונה</th></tr></thead><tbody>
                 ${data.students.map(s => `<tr><td>${s.name}</td><td>${s.games_count || 0}</td><td>${s.completed_count || 0}</td><td>${s.active_count || 0}</td><td>${s.last_activity ? new Date(s.last_activity+' UTC').toLocaleString('he-IL') : '—'}</td></tr>`).join('') || '<tr><td colspan="5">אין עדיין תלמידים בכיתה</td></tr>'}
             </tbody></table>
@@ -1118,6 +1161,15 @@
             <div class="mini-game-list">
                 ${data.games.map(g => `<div class="mini-game"><div><strong>${g.name}</strong><div style="font-size:0.85rem;color:#777;">${g.student_name} · ${g.status} · ${new Date(g.created_at+' UTC').toLocaleDateString('he-IL')}</div></div>${g.status==='completed'?`<a href="/play/${g.id}" target="_blank">פתח משחק</a>`:''}</div>`).join('') || '<div style="color:#777;">עדיין אין משחקים בכיתה</div>'}
             </div>`;
+        }
+
+        async function resolveSafetyEvent(eventId) {
+            await fetch(`/api/safety-events/${eventId}/resolve`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'סומן כטופל בדשבורד' })
+            });
+            if (selectedClassId) await loadClassReport(selectedClassId);
         }
 
         function logoutTeacher() {
@@ -1260,6 +1312,11 @@
                     body: JSON.stringify({ userId: currentUser.id, prompt: p, images: [] })
                 });
                 const d = await r.json();
+                if (!r.ok) {
+                    removeThinking();
+                    addChatBubble('assistant', showSafetyMessage(d, 'התיאור הזה לא מתאים לסביבת הכיתה'));
+                    return;
+                }
                 currentGameId = d.id;
 
                 // Remove thinking indicator and show real response
@@ -1396,11 +1453,19 @@
                 const histBefore = await fetch(`/api/history/${currentGameId}`).then(r => r.json());
                 const countBefore = histBefore.filter(m => m.role === 'assistant').length;
                 
-                await fetch(`/api/chat/${currentGameId}`, {
+                const sendResponse = await fetch(`/api/chat/${currentGameId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ message })
                 });
+                const sendData = await sendResponse.json().catch(() => ({}));
+                if (!sendResponse.ok) {
+                    document.getElementById('chatTyping').classList.remove('show');
+                    document.getElementById('chatSendBtn').disabled = false;
+                    document.getElementById('chatBuildBtn').disabled = false;
+                    addChatBubble('assistant', showSafetyMessage(sendData, 'ההודעה הזו לא מתאימה לסביבת הכיתה'));
+                    return;
+                }
                 
                 // Poll for new assistant message
                 let attempts = 0;
@@ -1446,12 +1511,24 @@
             document.getElementById('chatSendBtn').disabled = true;
 
             try {
-                await fetch(`/api/chat/${currentGameId}/build`, {
+                const r = await fetch(`/api/chat/${currentGameId}/build`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                    addChatBubble('assistant', showSafetyMessage(d, 'אי אפשר לבנות מהשיחה הזו כרגע'));
+                    document.getElementById('chatBuildBtn').disabled = false;
+                    document.getElementById('chatBuildBtn').textContent = 'יאללה, תבנה! 🚀';
+                    document.getElementById('chatSendBtn').disabled = false;
+                    return;
+                }
             } catch (e) {
-                // Even if request fails, switch to build screen
+                showToast('שגיאה בהתחלת הבנייה');
+                document.getElementById('chatBuildBtn').disabled = false;
+                document.getElementById('chatBuildBtn').textContent = 'יאללה, תבנה! 🚀';
+                document.getElementById('chatSendBtn').disabled = false;
+                return;
             }
             
             // Immediately switch to build/editor screen
@@ -1607,11 +1684,17 @@
             showWaitingState();
 
             try {
-                await fetch('/api/improve', {
+                const r = await fetch('/api/improve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ gameId: currentGameId, prompt: p, images: [] })
                 });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok) {
+                    showSafetyMessage(d, 'בקשת השיפור הזו לא מתאימה לסביבת הכיתה');
+                    showGame(currentGameCode);
+                    return;
+                }
                 startPolling(currentGameId);
             } catch (e) { showToast('שגיאה'); }
             finally {
