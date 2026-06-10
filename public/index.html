@@ -516,6 +516,30 @@
         .chat-btn-build:hover { transform: translateY(-2px); }
         .chat-btn-build:disabled { opacity: 0.5; cursor: not-allowed; }
 
+
+        .login-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+        .login-tab { padding: 0.7rem; border: 2px solid #e0e0e0; background: #fff; border-radius: 12px; font-family: inherit; font-weight: 700; cursor: pointer; }
+        .login-tab.active { border-color: #667eea; color: #667eea; background: #f0f3ff; }
+        .teacher-field { display: none; margin-top: 0.7rem; }
+        .teacher-dashboard { max-width: 1100px; margin: 0 auto; }
+        .teacher-card { background: white; border-radius: 20px; padding: 1.2rem; box-shadow: 0 10px 40px rgba(0,0,0,0.15); margin-bottom: 1rem; }
+        .teacher-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; color: white; margin-bottom: 1rem; }
+        .teacher-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .teacher-input { padding: 0.8rem 1rem; border: 2px solid #e0e0e0; border-radius: 12px; font-family: inherit; font-size: 1rem; }
+        .teacher-btn { padding: 0.8rem 1rem; border: none; border-radius: 12px; background: linear-gradient(135deg, #4CAF50, #45a049); color: white; font-family: inherit; font-weight: 700; cursor: pointer; }
+        .teacher-btn.secondary { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .teacher-btn.gray { background: #555; }
+        .classes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+        .class-card { background: white; border-radius: 16px; padding: 1rem; cursor: pointer; border: 3px solid transparent; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .class-card.active { border-color: #667eea; }
+        .class-code { display: inline-block; direction: ltr; background: #fff3cd; color: #856404; padding: 0.25rem 0.6rem; border-radius: 8px; font-weight: 900; letter-spacing: 1px; margin-top: 0.5rem; }
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .report-table th, .report-table td { padding: 0.7rem; border-bottom: 1px solid #eee; text-align: right; }
+        .report-table th { color: #666; font-size: 0.9rem; }
+        .mini-game-list { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem; }
+        .mini-game { display: flex; justify-content: space-between; gap: 1rem; background: #f8f9fa; border-radius: 10px; padding: 0.75rem; align-items: center; }
+        .mini-game a { color: #667eea; font-weight: 700; text-decoration: none; }
+
         .toast {
             position: fixed;
             bottom: 2rem;
@@ -764,9 +788,15 @@
 
         <div class="screen active" id="loginScreen">
             <div class="login-screen">
-                <h2>👋 מה השם שלך?</h2>
-                <input type="text" id="nameInput" placeholder="הכנס את השם שלך" maxlength="20" onkeypress="if(event.key==='Enter')login()">
-                <button onclick="login()">🚀 בואו נתחיל!</button>
+                <div class="login-tabs">
+                    <button class="login-tab active" id="studentTab" onclick="setLoginMode('student')">👧 תלמיד/ה</button>
+                    <button class="login-tab" id="teacherTab" onclick="setLoginMode('teacher')">👩‍🏫 מורה</button>
+                </div>
+                <h2 id="loginTitle">👋 מה השם שלך?</h2>
+                <input type="text" id="nameInput" placeholder="הכנס את השם שלך" maxlength="30" onkeypress="if(event.key==='Enter')login()">
+                <input type="text" id="classCodeInput" class="teacher-field" placeholder="קוד כיתה (אם יש)" maxlength="8" style="text-transform:uppercase;direction:ltr" onkeypress="if(event.key==='Enter')login()">
+                <button onclick="login()" id="loginBtn">🚀 בואו נתחיל!</button>
+                <p id="loginHint" style="font-size:0.85rem;color:#777;margin-top:0.8rem;line-height:1.5;">תלמידים יכולים להיכנס רגיל, או להוסיף קוד כיתה מהמורה.</p>
             </div>
             
             <!-- Public Gallery -->
@@ -803,6 +833,22 @@
                     <button class="btn-new-game" onclick="openCreateModal()">✨ צור משחק חדש</button>
                 </div>
                 <div id="gamesGrid" class="games-grid"></div>
+            </div>
+        </div>
+
+
+        <div class="screen" id="teacherScreen">
+            <div class="teacher-dashboard">
+                <div class="teacher-header">
+                    <h2>👩‍🏫 דשבורד מורה — <span id="teacherNameLabel"></span></h2>
+                    <div class="teacher-actions">
+                        <input class="teacher-input" id="newClassName" placeholder="שם כיתה חדשה, למשל ד׳1">
+                        <button class="teacher-btn" onclick="createClass()">➕ צור כיתה</button>
+                        <button class="teacher-btn gray" onclick="logoutTeacher()">יציאה</button>
+                    </div>
+                </div>
+                <div class="classes-grid" id="classesGrid"></div>
+                <div class="teacher-card" id="classReport" style="display:none;"></div>
             </div>
         </div>
 
@@ -947,43 +993,135 @@
     <div class="toast" id="toast"></div>
 
     <script>
+        let loginMode = 'student';
         let currentUser = null;
+        let currentTeacher = null;
+        let selectedClassId = null;
         let currentGameId = null;
         let currentGameName = '';
         let currentGameCode = '';
         let pollingInterval = null;
 
+        function setLoginMode(mode) {
+            loginMode = mode;
+            document.getElementById('studentTab').classList.toggle('active', mode === 'student');
+            document.getElementById('teacherTab').classList.toggle('active', mode === 'teacher');
+            document.getElementById('classCodeInput').style.display = mode === 'student' ? 'block' : 'none';
+            document.getElementById('loginTitle').textContent = mode === 'teacher' ? '👩‍🏫 כניסת מורה' : '👋 מה השם שלך?';
+            document.getElementById('loginBtn').textContent = mode === 'teacher' ? '📚 כניסה לדשבורד מורה' : '🚀 בואו נתחיל!';
+            document.getElementById('loginHint').textContent = mode === 'teacher'
+                ? 'אין צורך בסיסמה כרגע — זה MVP פנימי. בעתיד נוסיף הרשאות מלאות.'
+                : 'תלמידים יכולים להיכנס רגיל, או להוסיף קוד כיתה מהמורה.';
+        }
+
         async function login() {
             const name = document.getElementById('nameInput').value.trim();
             if (!name) { showToast('הכנס את השם שלך'); return; }
+
+            if (loginMode === 'teacher') return teacherLogin(name);
             
             try {
-                // Get or create user from server (same name = same user)
+                const classCode = document.getElementById('classCodeInput').value.trim().toUpperCase();
                 const r = await fetch('/api/user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name })
+                    body: JSON.stringify({ name, classCode: classCode || undefined })
                 });
-                currentUser = await r.json();
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'שגיאה בכניסה');
+                currentUser = data;
                 localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
                 
-                // Sync any local games to server
                 await syncLocalGamesToServer();
-                
                 showGamesScreen();
             } catch (e) {
                 console.error('Login error:', e);
-                // Fallback to local-only mode
-                const saved = localStorage.getItem('gameBuilderUser');
-                if (saved) {
-                    const p = JSON.parse(saved);
-                    currentUser = p.name === name ? p : { id: generateId(), name };
-                } else {
-                    currentUser = { id: generateId(), name };
-                }
-                localStorage.setItem('gameBuilderUser', JSON.stringify(currentUser));
-                showGamesScreen();
+                showToast(e.message || 'שגיאה בכניסה');
             }
+        }
+
+        async function teacherLogin(name) {
+            try {
+                const r = await fetch('/api/teacher', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || 'שגיאה בכניסת מורה');
+                currentTeacher = data;
+                localStorage.setItem('gameBuilderTeacher', JSON.stringify(currentTeacher));
+                showTeacherDashboard();
+            } catch (e) { showToast(e.message || 'שגיאה בכניסת מורה'); }
+        }
+
+        async function showTeacherDashboard() {
+            showScreen('teacherScreen');
+            document.getElementById('teacherNameLabel').textContent = currentTeacher.name;
+            await loadTeacherClasses();
+        }
+
+        async function loadTeacherClasses() {
+            const r = await fetch(`/api/teacher/${currentTeacher.id}/classes`);
+            const classes = await r.json();
+            const grid = document.getElementById('classesGrid');
+            if (!classes.length) {
+                grid.innerHTML = `<div class="teacher-card" style="grid-column:1/-1;text-align:center;">עדיין אין כיתות. צרי כיתה ראשונה למעלה 👆</div>`;
+                document.getElementById('classReport').style.display = 'none';
+                return;
+            }
+            grid.innerHTML = classes.map(c => `<div class="class-card ${c.id===selectedClassId?'active':''}" onclick="selectClass('${c.id}')">
+                <h3>${c.name}</h3><div>👧 תלמידים: ${c.students_count || 0}</div><div class="class-code">${c.code}</div>
+                <div style="font-size:0.8rem;color:#777;margin-top:0.5rem;">תני את הקוד הזה לתלמידים</div>
+            </div>`).join('');
+            if (!selectedClassId) selectClass(classes[0].id);
+        }
+
+        async function createClass() {
+            const name = document.getElementById('newClassName').value.trim();
+            if (!name) return showToast('כתבי שם כיתה');
+            const r = await fetch(`/api/teacher/${currentTeacher.id}/classes`, {
+                method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name })
+            });
+            const c = await r.json();
+            if (!r.ok) return showToast(c.error || 'שגיאה ביצירת כיתה');
+            document.getElementById('newClassName').value = '';
+            selectedClassId = c.id;
+            await loadTeacherClasses();
+            await loadClassReport(c.id);
+        }
+
+        async function selectClass(id) { selectedClassId = id; await loadTeacherClasses(); await loadClassReport(id); }
+
+        async function addStudentToClass(classId) {
+            const name = prompt('שם התלמיד/ה:');
+            if (!name || !name.trim()) return;
+            const r = await fetch(`/api/classes/${classId}/students`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ name:name.trim() }) });
+            const data = await r.json();
+            if (!r.ok) return showToast(data.error || 'שגיאה בהוספת תלמיד');
+            await loadTeacherClasses();
+            await loadClassReport(classId);
+        }
+
+        async function loadClassReport(classId) {
+            const r = await fetch(`/api/classes/${classId}/report`);
+            const data = await r.json();
+            if (!r.ok) return showToast(data.error || 'שגיאה בטעינת כיתה');
+            const box = document.getElementById('classReport');
+            box.style.display = 'block';
+            box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:1rem;align-items:center;flex-wrap:wrap;">
+                <div><h2>${data.class.name}</h2><div>קוד כיתה: <span class="class-code">${data.class.code}</span></div></div>
+                <button class="teacher-btn secondary" onclick="addStudentToClass('${classId}')">➕ הוספת תלמיד/ה</button>
+            </div>
+            <table class="report-table"><thead><tr><th>תלמיד/ה</th><th>משחקים</th><th>הושלמו</th><th>בתהליך</th><th>פעילות אחרונה</th></tr></thead><tbody>
+                ${data.students.map(s => `<tr><td>${s.name}</td><td>${s.games_count || 0}</td><td>${s.completed_count || 0}</td><td>${s.active_count || 0}</td><td>${s.last_activity ? new Date(s.last_activity+' UTC').toLocaleString('he-IL') : '—'}</td></tr>`).join('') || '<tr><td colspan="5">אין עדיין תלמידים בכיתה</td></tr>'}
+            </tbody></table>
+            <h3 style="margin-top:1.2rem;">🎮 משחקים אחרונים בכיתה</h3>
+            <div class="mini-game-list">
+                ${data.games.map(g => `<div class="mini-game"><div><strong>${g.name}</strong><div style="font-size:0.85rem;color:#777;">${g.student_name} · ${g.status} · ${new Date(g.created_at+' UTC').toLocaleDateString('he-IL')}</div></div>${g.status==='completed'?`<a href="/play/${g.id}" target="_blank">פתח משחק</a>`:''}</div>`).join('') || '<div style="color:#777;">עדיין אין משחקים בכיתה</div>'}
+            </div>`;
+        }
+
+        function logoutTeacher() {
+            currentTeacher = null; selectedClassId = null; localStorage.removeItem('gameBuilderTeacher'); showScreen('loginScreen');
         }
         
         async function syncLocalGamesToServer() {
@@ -1571,8 +1709,15 @@
             setTimeout(() => t.classList.remove('show'), 3000);
         }
 
+        const savedTeacher = localStorage.getItem('gameBuilderTeacher');
         const saved = localStorage.getItem('gameBuilderUser');
-        if (saved) { currentUser = JSON.parse(saved); document.getElementById('nameInput').value = currentUser.name; }
+        if (savedTeacher) {
+            currentTeacher = JSON.parse(savedTeacher);
+            showTeacherDashboard();
+        } else if (saved) {
+            currentUser = JSON.parse(saved);
+            document.getElementById('nameInput').value = currentUser.name;
+        }
 
         // Gallery Functions
         async function loadGallery() {

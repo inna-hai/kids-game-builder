@@ -311,12 +311,18 @@ db.exec(`
     thumbnail_url TEXT
   );`);
 
-// Add thumbnail_url column if it doesn't exist (migration)
-try {
-  db.exec(`ALTER TABLE games ADD COLUMN thumbnail_url TEXT`);
-  console.log('Added thumbnail_url column');
-} catch (e) {
-  // Column already exists
+// Add columns if they don't exist (migrations)
+for (const migration of [
+  `ALTER TABLE games ADD COLUMN thumbnail_url TEXT`,
+  `ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'student'`,
+  `ALTER TABLE users ADD COLUMN class_id TEXT`,
+]) {
+  try {
+    db.exec(migration);
+    console.log('Migration applied:', migration);
+  } catch (e) {
+    // Column/table may already exist
+  }
 }
 
 db.exec(`
@@ -324,7 +330,24 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     name TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    role TEXT DEFAULT 'student',
+    class_id TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS teachers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS classes (
+    id TEXT PRIMARY KEY,
+    teacher_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    code TEXT NOT NULL UNIQUE,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
   );
   
   CREATE TABLE IF NOT EXISTS game_history (
@@ -337,21 +360,119 @@ db.exec(`
   );
 `);
 
-// Create or get user
+function generateClassCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let code = '';
+    for (let i = 0; i < 5; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    const exists = db.prepare('SELECT id FROM classes WHERE code = ?').get(code);
+    if (!exists) return code;
+  }
+  return uuidv4().slice(0, 5).toUpperCase();
+}
+
+// Create or get student user. Optional classCode links the student to a teacher class.
 app.post('/api/user', (req, res) => {
-  const { name } = req.body;
+  const { name, classCode } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'נדרש שם' });
   }
-  
-  let user = db.prepare('SELECT * FROM users WHERE name = ?').get(name);
-  if (!user) {
-    const id = uuidv4();
-    db.prepare('INSERT INTO users (id, name) VALUES (?, ?)').run(id, name);
-    user = { id, name };
+
+  let classRow = null;
+  if (classCode) {
+    classRow = db.prepare('SELECT * FROM classes WHERE UPPER(code) = UPPER(?)').get(String(classCode).trim());
+    if (!classRow) return res.status(404).json({ error: 'קוד כיתה לא נמצא' });
   }
   
+  let user = classRow
+    ? db.prepare('SELECT * FROM users WHERE name = ? AND class_id = ?').get(name, classRow.id)
+    : db.prepare("SELECT * FROM users WHERE name = ? AND (class_id IS NULL OR class_id = '')").get(name);
+
+  if (!user) {
+    const id = uuidv4();
+    db.prepare('INSERT INTO users (id, name, role, class_id) VALUES (?, ?, ?, ?)')
+      .run(id, name, 'student', classRow?.id || null);
+    user = { id, name, role: 'student', class_id: classRow?.id || null };
+  }
+  
+  res.json({ ...user, className: classRow?.name || null, classCode: classRow?.code || null });
+});
+
+// Teacher login/create
+app.post('/api/teacher', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'נדרש שם מורה' });
+  let teacher = db.prepare('SELECT * FROM teachers WHERE name = ?').get(name);
+  if (!teacher) {
+    const id = uuidv4();
+    db.prepare('INSERT INTO teachers (id, name) VALUES (?, ?)').run(id, name);
+    teacher = { id, name };
+  }
+  res.json(teacher);
+});
+
+app.get('/api/teacher/:teacherId/classes', (req, res) => {
+  const classes = db.prepare(`
+    SELECT c.*, COUNT(u.id) as students_count
+    FROM classes c
+    LEFT JOIN users u ON u.class_id = c.id
+    WHERE c.teacher_id = ?
+    GROUP BY c.id
+    ORDER BY c.created_at DESC
+  `).all(req.params.teacherId);
+  res.json(classes);
+});
+
+app.post('/api/teacher/:teacherId/classes', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'נדרש שם כיתה' });
+  const teacher = db.prepare('SELECT * FROM teachers WHERE id = ?').get(req.params.teacherId);
+  if (!teacher) return res.status(404).json({ error: 'מורה לא נמצאה' });
+  const id = uuidv4();
+  const code = generateClassCode();
+  db.prepare('INSERT INTO classes (id, teacher_id, name, code) VALUES (?, ?, ?, ?)')
+    .run(id, req.params.teacherId, name, code);
+  res.json({ id, teacher_id: req.params.teacherId, name, code, students_count: 0 });
+});
+
+app.post('/api/classes/:classId/students', (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'נדרש שם תלמיד/ה' });
+  const classRow = db.prepare('SELECT * FROM classes WHERE id = ?').get(req.params.classId);
+  if (!classRow) return res.status(404).json({ error: 'כיתה לא נמצאה' });
+  let user = db.prepare('SELECT * FROM users WHERE name = ? AND class_id = ?').get(name, classRow.id);
+  if (!user) {
+    const id = uuidv4();
+    db.prepare('INSERT INTO users (id, name, role, class_id) VALUES (?, ?, ?, ?)').run(id, name, 'student', classRow.id);
+    user = { id, name, role: 'student', class_id: classRow.id };
+  }
   res.json(user);
+});
+
+app.get('/api/classes/:classId/report', (req, res) => {
+  const classRow = db.prepare('SELECT * FROM classes WHERE id = ?').get(req.params.classId);
+  if (!classRow) return res.status(404).json({ error: 'כיתה לא נמצאה' });
+  const students = db.prepare(`
+    SELECT u.id, u.name, u.created_at,
+           COUNT(g.id) as games_count,
+           SUM(CASE WHEN g.status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+           SUM(CASE WHEN g.status IN ('pending','chatting') THEN 1 ELSE 0 END) as active_count,
+           MAX(g.created_at) as last_activity
+    FROM users u
+    LEFT JOIN games g ON g.user_id = u.id
+    WHERE u.class_id = ?
+    GROUP BY u.id
+    ORDER BY u.name COLLATE NOCASE
+  `).all(req.params.classId);
+  const games = db.prepare(`
+    SELECT g.id, g.name, g.prompt, g.status, g.created_at, g.completed_at, g.thumbnail_url, u.name as student_name, u.id as user_id
+    FROM games g
+    JOIN users u ON g.user_id = u.id
+    WHERE u.class_id = ?
+    ORDER BY g.created_at DESC
+    LIMIT 200
+  `).all(req.params.classId);
+  res.json({ class: classRow, students, games });
 });
 
 // Submit game request (goes to queue for Claude to process)
