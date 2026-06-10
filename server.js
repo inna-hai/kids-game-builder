@@ -139,7 +139,7 @@ const CHAT_SYSTEM_PROMPT = `אתה עוזר יצירתי לילדים שרוצי
 
 async function chatWithAI(messages) {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20000);
+  const timeout = setTimeout(() => controller.abort(), 90000);
   
   try {
     const response = await fetch(`http://${OPENCLAW_GATEWAY_HOST}:${OPENCLAW_GATEWAY_PORT}/v1/chat/completions`, {
@@ -547,7 +547,10 @@ app.post('/api/request', async (req, res) => {
     startConversation(id, fullPrompt).catch(e => {
       console.error('Conversation start failed:', e.message);
       db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-        .run(id, 'assistant', '😅 הייתה תקלה זמנית בצ׳אט. אפשר לנסות שוב עוד רגע, או ללחוץ על הכפתור לבנייה.');
+        .run(id, 'assistant', '😅 הצ׳אט קצת איטי עכשיו, אז אני מדלג ישר לבניית המשחק כדי לא לעכב אותך.');
+      db.prepare('UPDATE games SET status = ? WHERE id = ? AND status = ?')
+        .run('pending', id, 'chatting');
+      notifyOpenClaw(id, fullPrompt);
     });
   } catch (error) {
     console.error('Error submitting request:', error);
@@ -609,7 +612,7 @@ app.post('/api/chat/:id', async (req, res) => {
       (err) => {
         console.error('Chat AI error:', err.message);
         db.prepare('INSERT INTO game_history (game_id, role, message) VALUES (?, ?, ?)')
-          .run(gameId, 'assistant', '😅 סליחה, לא הצלחתי לענות. נסה שוב!');
+          .run(gameId, 'assistant', '😅 הצ׳אט לא הצליח לענות כרגע. אפשר לכתוב שוב או ללחוץ על ״יאללה, תבנה!״.');
       }
     );
   } catch (error) {

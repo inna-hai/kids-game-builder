@@ -1340,7 +1340,7 @@
                         openGameEditor();
                         if (status.status === 'completed') {
                             currentGameCode = status.code;
-                            renderGame(status.code);
+                            showGame(status.code);
                         } else {
                             showWaitingState();
                             startPolling(gameId);
